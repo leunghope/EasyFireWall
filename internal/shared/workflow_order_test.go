@@ -399,11 +399,13 @@ func hasIntegrationTests(t *testing.T, dir string) bool {
 
 // v2.22.0, v2.23.0 and v2.23.1 were released from a main commit whose Build run
 // was red. The main-is-green job refuses such a tag; it only does so while the
-// job that publishes waits for it.
+// job that publishes waits for it. `skipped` is excluded because a run whose
+// every job was skipped proves nothing — on a fork that is docs.yml's push run,
+// whose deploy job is guarded to the upstream repository.
 func TestTheReleaseWaitsForAGreenMain(t *testing.T) {
 	release := repoFile(t, ".github", "workflows", "release.yml")
 	gate := jobBlock(t, release, "main-is-green")
-	for _, want := range []string{`"Build","Test","Security"`, `select(.conclusion != "success")`, "merge-base --is-ancestor"} {
+	for _, want := range []string{`"Build","Test","Security"`, `select(.conclusion != "success" and .conclusion != "skipped")`, "merge-base --is-ancestor"} {
 		if !strings.Contains(gate, want) {
 			t.Errorf("main-is-green no longer contains %s", want)
 		}
