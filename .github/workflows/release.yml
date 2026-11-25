@@ -36,13 +36,20 @@ jobs:
           # Build, Test and Security run on every push to main; Docs and
           # Publish edge are counted when they ran. 45 minutes covers a Build
           # that started when the tag did.
+          #
+          # A run whose every job was skipped is not a run that failed. Docs
+          # deploys only from the upstream repository, so on a fork its push
+          # run is created and skipped — and counting `skipped` as red made
+          # every tag here refuse to start. It proves nothing either way, which
+          # is why it is dropped rather than tolerated: a red Build is still a
+          # red Build.
           for _ in $(seq 1 90); do
             runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SHA&event=push&per_page=100" \
               --jq '[.workflow_runs[] | select(.head_branch == "main") | {name, status, conclusion, url: .html_url}]')
             missing=$(jq -r '[("Build","Test","Security") as $w | select(all(.[]; .name != $w)) | $w] | join(", ")' <<<"$runs")
             pending=$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")
             if [ -z "$missing" ] && [ "$pending" = 0 ]; then
-              red=$(jq -r '.[] | select(.conclusion != "success") | "\(.name): \(.conclusion) \(.url)"' <<<"$runs")
+              red=$(jq -r '.[] | select(.conclusion != "success" and .conclusion != "skipped") | "\(.name): \(.conclusion) \(.url)"' <<<"$runs")
               [ -z "$red" ] || { echo "::error::main is not green at $SHA:"; echo "$red"; exit 1; }
               jq -r '.[] | "ok  \(.name)"' <<<"$runs"
               exit 0

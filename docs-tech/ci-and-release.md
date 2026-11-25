@@ -323,7 +323,10 @@ it went unseen from the 2.22 merge to 2.23.1, three tags on a red Build (a
 `| grep -q` under `pipefail`, see [invariants](invariants.md)). `release.yml`'s
 first job, `main-is-green`, now waits for every run `main` started for the tagged
 commit and refuses the tag unless Build, Test and Security — and Docs or Publish
-edge, when they ran — all succeeded. A red `main` between releases is still only
+edge, when they ran — all succeeded. A run whose every job was skipped is not
+counted either way: it proves nothing, and on this fork `docs.yml`'s push run is
+always such a run, because the deploy job is guarded to the upstream repository.
+A red `main` between releases is still only
 seen by whoever looks; the tag is where it can no longer slip through.
 
 ## Cutting a release
