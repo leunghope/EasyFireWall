@@ -116,6 +116,29 @@ Everything else — the version assertion, the unit tests, the tarball contents,
 the `.deb` — runs before the release exists. A defect stops the run with nothing
 published, rather than after a page has been announced with a broken asset.
 
+## Three ways an assertion lies about a good build
+
+All three were found by running the pipeline, not by reading it. Each reported a
+missing artefact on a tree that was correct, so each is a trap worth keeping out.
+
+- **`grep -q` under `set -o pipefail`.** `tar -tzf … | grep -qx …` reports
+  failure on a match: `grep -q` exits at the first hit, the producer takes
+  `SIGPIPE`, and `pipefail` makes the pipeline non-zero. The listing is captured
+  once and grepped without `-q`. The same shape was in the `.deb` checks and the
+  `file` architecture checks.
+- **`tar` spells a directory with a trailing slash.** `…/web` does not match the
+  entry `…/web/`, so a contents check on a directory can only pass by accident.
+  Both spellings are accepted.
+- **`ls -1 easywall_*` answers a directory with its contents.** The build
+  directories in `out/` matched the glob, so `sha256sum $(ls -1 easywall_*)`
+  received `easywall-core`, `web`, `locales` and the rest, and exited 1. Both the
+  manifest and the upload list now walk the glob and keep what `[ -f ]` accepts.
+
+The general rule: an assertion about an artefact is itself code, and it is
+verified by running it against a good build *and* against a broken one. The
+negative case matters as much — a contents check that cannot fail is not a
+check, which is why each of these was tested with an entry deliberately removed.
+
 ## Limits worth knowing
 
 - **The `.deb` is amd64 only.** Building arm64 needs `dpkg-buildpackage` under
