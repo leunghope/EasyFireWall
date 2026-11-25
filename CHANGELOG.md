@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   直接 `wget`。
 - **容器镜像**：改推 `ghcr.io/leunghope/easyfirewall`，`:latest` 跟随每次发布，
   `:v2.29.2-zh.2` 固定到本版。
+- **构建工具链升到 Go 1.27.4**：`govulncheck` 在 Go 1.27.3 的标准库 `net/http` 里报了
+  一处 HTTP/1 服务端崩溃漏洞（GO-2026-6859），1.27.4 修好了它。`go.mod` 的
+  `toolchain` 行、Dockerfile 和 Gitea 流水线一起跟上。
 
 ### 说明
 
