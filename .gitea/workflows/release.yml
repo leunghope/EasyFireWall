@@ -40,6 +40,15 @@ on:
   push:
     tags:
       - "v*"
+  # The same job, started by hand. A tag push is the normal path; this exists
+  # because deleting and re-pushing a tag is how a release is retried, and
+  # because "did the tag trigger at all" is a question worth being able to
+  # answer without creating a release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v2.29.2-zh.1"
+        required: true
 
 jobs:
   release:
@@ -49,10 +58,12 @@ jobs:
     # golang-go >= 2:1.27, which trixie does not ship, so the toolchain comes
     # from this image and dpkg-buildpackage is run with -d (build-deps skipped).
     # That is what upstream does on ubuntu-24.04 with actions/setup-go.
-    container: golang:1.27.3-bookworm
-    # The only thing the container needs from outside itself: the host's daemon,
-    # for the image step. Verified mounted by the probe.
-    container.options: --volume /var/run/docker.sock:/var/run/docker.sock
+    # Debhelper, dpkg-dev and a Go 1.27 toolchain in one image. The host's
+    # docker socket is mounted by the runner itself — the probe's container job
+    # asked for nothing and still got /var/run/docker.sock, which is what the
+    # image step uses.
+    container:
+      image: golang:1.27.3-bookworm
     defaults:
       run:
         # act runs Debian images with `sh -e {0}`, which is dash and has no
@@ -61,7 +72,8 @@ jobs:
     env:
       API: ${{ github.server_url }}/api/v1
       REPO: ${{ github.repository }}
-      TAG: ${{ github.ref_name }}
+      # A tag push sets ref_name to the tag; a manual run passes it in.
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
       RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
       REGISTRY: ${{ github.server_url }}
