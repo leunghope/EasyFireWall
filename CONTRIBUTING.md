@@ -6,8 +6,8 @@ started and what we expect from contributions.
 ## Development Setup
 
 ```bash
-git clone https://github.com/jp1337/easywall.git
-cd easywall
+git clone https://github.com/leunghope/EasyFireWall.git
+cd EasyFireWall
 
 # Install Go 1.27+  (the toolchain go.mod pins; workflows read it from there)
 # https://go.dev/dl/

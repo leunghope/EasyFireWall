@@ -6,10 +6,10 @@ description: 三条命令完成环境搭建、评审会检查的规则，以及�
 
 # 贡献指南
 
-完整指南：[CONTRIBUTING.md](https://github.com/jp1337/easywall/blob/main/CONTRIBUTING.md)。本页是精简版。
+完整指南：[CONTRIBUTING.md](https://github.com/leunghope/EasyFireWall/blob/main/CONTRIBUTING.md)。本页是精简版。
 
 ```bash
-git clone https://github.com/jp1337/easywall.git && cd easywall
+git clone https://github.com/leunghope/EasyFireWall.git && cd EasyFireWall
 go mod download
 make test lint
 ```
@@ -19,7 +19,7 @@ make test lint
 | 工具链 | 以 `go.mod` 里 `toolchain` 那一行为准 —— 绝不在其他任何地方写死版本号 |
 | 提交 | [Conventional Commits](https://www.conventionalcommits.org/)：`feat`、`fix`、`security`、`docs`、`chore`、`refactor`、`test` |
 | 覆盖率 | 不得低于 80% |
-| 任何视觉相关的东西 | 先经过 [`DESIGN.md`](https://github.com/jp1337/easywall/blob/main/DESIGN.md) |
+| 任何视觉相关的东西 | 先经过 [`DESIGN.md`](https://github.com/leunghope/EasyFireWall/blob/main/DESIGN.md) |
 
 ## 重建已提交的构建产物
 
@@ -83,7 +83,7 @@ CI 会重建这两个样式表，只要有差异就失败。图表渲染无法�
 
 ## 安全问题
 
-**不要**作为公开 issue 提出，也**不要**发在 Discord —— 请用 [GitHub Security Advisories](https://github.com/jp1337/easywall/security/advisories/new)。欢迎研究，研究没有报酬；负责任的报告会得到署名致谢。
+**不要**作为公开 issue 提出，也**不要**发在 Discord —— 请用 [GitHub Security Advisories](https://github.com/leunghope/EasyFireWall/security/advisories/new)。欢迎研究，研究没有报酬；负责任的报告会得到署名致谢。
 
 ## 由 AI 代理撰写
 

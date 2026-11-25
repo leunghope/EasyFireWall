@@ -6,7 +6,7 @@ description: GPL-3.0，以及它对你要求了什么 —— 在把 easywall 交
 
 # 许可证
 
-easywall 采用 **GNU General Public License, version 3**。完整文本见[仓库中的 LICENSE 文件](https://github.com/jp1337/easywall/blob/main/LICENSE)与 [gnu.org](https://www.gnu.org/licenses/gpl-3.0.html)。本页讲的是它在实践中意味着什么；这不是法律意见，两者若有出入，以许可证原文为准。
+easywall 采用 **GNU General Public License, version 3**。完整文本见[仓库中的 LICENSE 文件](https://github.com/leunghope/EasyFireWall/blob/main/LICENSE)与 [gnu.org](https://www.gnu.org/licenses/gpl-3.0.html)。本页讲的是它在实践中意味着什么；这不是法律意见，两者若有出入，以许可证原文为准。
 
 ## 运行
 

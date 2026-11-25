@@ -8,7 +8,7 @@ description: .deb 软件包——两个 systemd 单元，配置位于 /etc/easyw
 
 ```bash
 ARCH=$(dpkg --print-architecture)      # amd64 or arm64
-wget https://github.com/jp1337/easywall/releases/latest/download/easywall_$ARCH.deb
+wget https://github.com/leunghope/EasyFireWall/releases/latest/download/easywall_$ARCH.deb
 sudo dpkg -i easywall_$ARCH.deb && sudo apt-get install -f
 ```
 

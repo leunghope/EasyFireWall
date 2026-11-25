@@ -12,8 +12,8 @@ Maintainer: easywall maintainers <12394156+jp1337@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 13), golang-go (>= 2:1.27~)
 Standards-Version: 4.6.2
 Homepage: https://easywall-project.org
-Vcs-Browser: https://github.com/jp1337/easywall
-Vcs-Git: https://github.com/jp1337/easywall.git
+Vcs-Browser: https://github.com/leunghope/EasyFireWall
+Vcs-Git: https://github.com/leunghope/EasyFireWall.git
 Rules-Requires-Root: no
 
 Package: easywall

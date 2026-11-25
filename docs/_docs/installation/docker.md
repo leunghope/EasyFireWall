@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Docker
-description: 一个多架构镜像、三个镜像仓库、四种标签——以及为什么它需要 host 网络。
+description: 一个多架构镜像、四种标签——以及为什么它需要 host 网络。
 ---
 
 # Docker
@@ -13,8 +13,8 @@ easywall 过滤的是**宿主机**的防火墙，所以它跑在你想要保护�
 在服务器上，通过 SSH：
 
 ```bash
-git clone https://github.com/jp1337/easywall.git
-cd easywall
+git clone https://github.com/leunghope/EasyFireWall.git
+cd EasyFireWall
 docker compose up -d
 ```
 
@@ -69,7 +69,7 @@ docker run -d --name easywall --network host --cap-add NET_ADMIN \
   -v easywall_config:/etc/easywall \
   -v easywall_data:/var/lib/easywall \
   -v easywall_logs:/var/log/easywall \
-  ghcr.io/jp1337/easywall:latest
+  ghcr.io/leunghope/easyfirewall:latest
 ```
 
 没有这个挂载时，Docker 的 `VOLUME` 指令会给每个重建的容器一个新的空匿名卷，其中的历史在下次更新之后就没了。
@@ -115,21 +115,19 @@ docker exec easywall supervisorctl status
 
 ## 从哪里拉取
 
-同一个 `linux/amd64` + `linux/arm64` 镜像，由 CI 推送到这三处。公开，无需认证。
+本仓库的 CI 只把镜像推到 GitHub Container Registry —— 带简体中文本地化的是这一份。Docker Hub 与 Quay 上是上游 jp1337 的镜像，不随本仓库更新。全部公开，无需认证。
 
 | 镜像仓库 | 镜像 |
 |---|---|
-| GitHub Container Registry | `ghcr.io/jp1337/easywall` |
-| Docker Hub | `docker.io/kermit1337/easywall` |
-| Quay.io | `quay.io/jp1337/easywall` |
-
-> **Quay 落后了。** 发布令牌正被拒绝，因此该镜像源在替换之前会被跳过，它也没有最近的版本。请用 GHCR 或 Docker Hub。
+| GitHub Container Registry | `ghcr.io/leunghope/easyfirewall` |
+| Docker Hub（上游） | `docker.io/kermit1337/easywall` |
+| Quay.io（上游，落后） | `quay.io/jp1337/easywall` |
 
 ## 选哪个标签 {#which-tag}
 
 | 标签 | 何时移动 | 适用于 |
 |---|---|---|
-| `:latest` | 只在**稳定版**发布时移动——候选版本不会移动它 | **生产环境** |
+| `:latest` | 每次发布都会移动 | **生产环境** |
 | `:vX.Y.Z` | 从不移动 | 固定版本，例如 `v{{ site.version }}` |
 | `:edge` | `main` 上每次构建通过之后 | 跟踪开发版、[演示模式]({{ '/docs/installation/demo/' | relative_url }}) |
 | `:sha-<commit>` | 从不移动 | 回滚与调试 |
@@ -138,7 +136,7 @@ docker exec easywall supervisorctl status
 # docker-compose.override.yml — pin a version
 services:
   easywall:
-    image: ghcr.io/jp1337/easywall:v{{ site.version }}
+    image: ghcr.io/leunghope/easyfirewall:v{{ site.version }}
 ```
 
 ## 为什么用 host 网络
@@ -198,12 +196,12 @@ docker compose pull && docker compose up -d
 每个镜像都在一个 OCI 标签里带着源码提交：
 
 ```bash
-docker pull ghcr.io/jp1337/easywall:latest
+docker pull ghcr.io/leunghope/easyfirewall:latest
 docker image inspect \
   --format '{% raw %}{{ index .Config.Labels "org.opencontainers.image.revision" }}{% endraw %}' \
-  ghcr.io/jp1337/easywall:latest
+  ghcr.io/leunghope/easyfirewall:latest
 ```
 
 > **这里以前读的是 `.Manifest.Annotations`，那个值从来不在那儿。** 标签写入的是镜像的 *config*；manifest annotations 是另一个字段，只承载基础镜像与创建相关的键。验证方式是构建一个带 `--label org.opencontainers.image.revision=abc123` 的镜像，再读取推送后的 OCI 布局：`manifest annotations` 里是 `image.base.name` 和 `image.created`，而 `abc123` 在 `config.Labels` 里。所以那条命令什么都不打印，看起来像个没有来源信息的镜像。发布镜像当时确实也没有——现在标签在 `Dockerfile` 里设置，那是三条构建路径共用的唯一文件。
 
-把它与发布标签指向的提交对比。发布这些镜像的工作流是 [`release.yml`](https://github.com/jp1337/easywall/blob/main/.github/workflows/release.yml) 和 [`publish-edge.yml`](https://github.com/jp1337/easywall/blob/main/.github/workflows/publish-edge.yml)。
+把它与发布标签指向的提交对比。发布这些镜像的工作流是 [`release.yml`](https://github.com/leunghope/EasyFireWall/blob/main/.github/workflows/release.yml) 和 [`publish-edge.yml`](https://github.com/leunghope/EasyFireWall/blob/main/.github/workflows/publish-edge.yml)。

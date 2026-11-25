@@ -82,7 +82,7 @@ description: easywall 读取的每个环境变量，以及这份清单为何只�
 ```yaml
 services:
   easywall:
-    image: ghcr.io/jp1337/easywall:latest
+    image: ghcr.io/leunghope/easyfirewall:latest
     container_name: easywall
     restart: unless-stopped
 

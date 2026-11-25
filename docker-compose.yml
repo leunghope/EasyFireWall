@@ -4,7 +4,7 @@ services:
       context: .
       args:
         VERSION: ${VERSION:-dev}
-    image: ghcr.io/jp1337/easywall:${VERSION:-latest}
+    image: ghcr.io/leunghope/easyfirewall:${VERSION:-latest}
     container_name: easywall
     restart: unless-stopped
 

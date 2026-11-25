@@ -13,8 +13,8 @@ description: 自己构建两个二进制并安装，适用于发行版没有提�
 在**构建**机器上准备 Go 1.27+（外加 Node.js）——目标机不需要。Go 的版本由 `go.mod` 固定；在 Debian trixie 上要从 backports 安装，因为 trixie 自带的是 Go 1.24。
 
 ```bash
-git clone https://github.com/jp1337/easywall.git
-cd easywall
+git clone https://github.com/leunghope/EasyFireWall.git
+cd EasyFireWall
 npm ci              # Tailwind, which `make build` runs first
 make build          # produces bin/easywall-core and bin/easywall-web
 ```

@@ -82,7 +82,7 @@ description: 两个进程、一条类型化 socket、三套规则集，以及一
 
 每条消息单程最大 8 MiB。更长的请求会得到 *request too large* 的响应。
 
-完整列表：[`internal/shared/protocol.go`](https://github.com/jp1337/easywall/blob/main/internal/shared/protocol.go)。
+完整列表：[`internal/shared/protocol.go`](https://github.com/leunghope/EasyFireWall/blob/main/internal/shared/protocol.go)。
 
 ## 它能防什么、不能防什么
 

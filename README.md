@@ -10,16 +10,16 @@
      三个状态徽章按名字读取工作流；版本、许可证和 Go 徽章读取仓库与
      go.mod，所以没有哪一枚会像手写的版本号那样走样。 -->
 <p align="center">
-  <a href="https://github.com/jp1337/easywall/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/jp1337/easywall/test.yml?branch=main&label=tests&logo=github&logoColor=white" alt="Tests"></a>
-  <a href="https://github.com/jp1337/easywall/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/jp1337/easywall/build.yml?branch=main&label=build&logo=github&logoColor=white" alt="Build"></a>
-  <a href="https://github.com/jp1337/easywall/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/jp1337/easywall/security.yml?branch=main&label=security&logo=github&logoColor=white" alt="Security"></a>
-  <a href="https://codecov.io/gh/jp1337/easywall"><img src="https://img.shields.io/codecov/c/github/jp1337/easywall/main?logo=codecov&logoColor=white&label=coverage" alt="Coverage"></a>
+  <a href="https://github.com/leunghope/EasyFireWall/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/leunghope/EasyFireWall/test.yml?branch=main&label=tests&logo=github&logoColor=white" alt="Tests"></a>
+  <a href="https://github.com/leunghope/EasyFireWall/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/leunghope/EasyFireWall/build.yml?branch=main&label=build&logo=github&logoColor=white" alt="Build"></a>
+  <a href="https://github.com/leunghope/EasyFireWall/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/leunghope/EasyFireWall/security.yml?branch=main&label=security&logo=github&logoColor=white" alt="Security"></a>
+  <a href="https://codecov.io/gh/leunghope/EasyFireWall"><img src="https://img.shields.io/codecov/c/github/leunghope/EasyFireWall/main?logo=codecov&logoColor=white&label=coverage" alt="Coverage"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/jp1337/easywall/releases/latest"><img src="https://img.shields.io/github/v/release/jp1337/easywall?logo=github&logoColor=white&label=release" alt="Latest release"></a>
-  <a href="https://go.dev"><img src="https://img.shields.io/github/go-mod/go-version/jp1337/easywall?logo=go&logoColor=white&label=go" alt="Go version"></a>
-  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/github/license/jp1337/easywall?logo=opensourceinitiative&logoColor=white&label=license&color=blue" alt="GPL-3.0"></a>
+  <a href="https://github.com/leunghope/EasyFireWall/releases/latest"><img src="https://img.shields.io/github/v/release/leunghope/EasyFireWall?logo=github&logoColor=white&label=release" alt="Latest release"></a>
+  <a href="https://go.dev"><img src="https://img.shields.io/github/go-mod/go-version/leunghope/EasyFireWall?logo=go&logoColor=white&label=go" alt="Go version"></a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/github/license/leunghope/EasyFireWall?logo=opensourceinitiative&logoColor=white&label=license&color=blue" alt="GPL-3.0"></a>
   <a href="https://discord.gg/3zJMvChvUA"><img src="https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://ko-fi.com/jp1337"><img src="https://img.shields.io/badge/ko--fi-support-13C3FF?logo=kofi&logoColor=white" alt="Support on Ko-fi"></a>
 </p>
@@ -67,14 +67,14 @@
 ```bash
 # Debian / Ubuntu — amd64 and arm64
 ARCH=$(dpkg --print-architecture)
-wget https://github.com/jp1337/easywall/releases/latest/download/easywall_$ARCH.deb
+wget https://github.com/leunghope/EasyFireWall/releases/latest/download/easywall_$ARCH.deb
 sudo dpkg -i easywall_$ARCH.deb && sudo apt-get install -f
 
 # Docker
-git clone https://github.com/jp1337/easywall.git && cd easywall && docker compose up -d
+git clone https://github.com/leunghope/EasyFireWall.git && cd EasyFireWall && docker compose up -d
 
 # From source — Go 1.27+, nftables
-git clone https://github.com/jp1337/easywall.git && cd easywall
+git clone https://github.com/leunghope/EasyFireWall.git && cd EasyFireWall
 make build && sudo make install
 sudo systemctl enable --now easywall-core easywall-web
 ```
@@ -113,14 +113,14 @@ sudo systemctl enable --now easywall-core easywall-web
 | | |
 |---|---|
 | 有问题要问，或哪里不对劲 | [Discord](https://discord.gg/3zJMvChvUA) |
-| 报告缺陷，或提出想要的功能 | [GitHub issues](https://github.com/jp1337/easywall/issues) |
-| 安全漏洞 | [安全公告](https://github.com/jp1337/easywall/security/advisories/new) —— **不要**发到 Discord，也不要开公开 issue |
+| 报告缺陷，或提出想要的功能 | [GitHub issues](https://github.com/leunghope/EasyFireWall/issues) |
+| 安全漏洞 | [安全公告](https://github.com/leunghope/EasyFireWall/security/advisories/new) —— **不要**发到 Discord，也不要开公开 issue |
 
 ## 参与贡献
 
 开发环境搭建、提交约定和审查清单：[CONTRIBUTING.md](CONTRIBUTING.md)。任何视觉相关的内容都先经过 [`DESIGN.md`](DESIGN.md)。
 
-安全问题：**不要**开公开 issue —— 使用 [GitHub Security Advisories](https://github.com/jp1337/easywall/security/advisories/new)。
+安全问题：**不要**开公开 issue —— 使用 [GitHub Security Advisories](https://github.com/leunghope/EasyFireWall/security/advisories/new)。
 
 ## 许可证
 

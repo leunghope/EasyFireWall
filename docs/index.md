@@ -104,4 +104,4 @@ nftables 规则、防护模块，以及防篡改的审计日志。没有云、�
 Go、GPL-3.0、经 netlink 操作 nftables。应用规则永远不会把你锁在外面。看看
 [架构]({{ '/docs/architecture/' | relative_url }})与
 [安全模型]({{ '/docs/security/' | relative_url }})。在
-[Discord]({{ site.discord }}) 和 [GitHub](https://github.com/jp1337/easywall) 上找到我们。
+[Discord]({{ site.discord }}) 和 [GitHub](https://github.com/leunghope/EasyFireWall) 上找到我们。

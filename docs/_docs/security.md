@@ -252,4 +252,4 @@ easywall v0.3.1——Python、Flask、`iptables`——在一次漏洞披露后�
 
 ## 报告漏洞
 
-**不要作为公开 issue。** 私下披露请使用 [GitHub Security Advisories](https://github.com/jp1337/easywall/security/advisories/new)——见 [SECURITY.md](https://github.com/jp1337/easywall/blob/main/SECURITY.md)。欢迎研究，没有报酬；经你同意，负责任的报告会在安全公告与发布说明中致谢。在你自己的安装上测试，绝不要在别人的安装上测试。
+**不要作为公开 issue。** 私下披露请使用 [GitHub Security Advisories](https://github.com/leunghope/EasyFireWall/security/advisories/new)——见 [SECURITY.md](https://github.com/leunghope/EasyFireWall/blob/main/SECURITY.md)。欢迎研究，没有报酬；经你同意，负责任的报告会在安全公告与发布说明中致谢。在你自己的安装上测试，绝不要在别人的安装上测试。

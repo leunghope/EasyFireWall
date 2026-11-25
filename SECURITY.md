@@ -11,7 +11,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Use **[GitHub Security Advisories](https://github.com/jp1337/easywall/security/advisories/new)** for private, coordinated disclosure. This keeps the report confidential until a fix is ready.
+Use **[GitHub Security Advisories](https://github.com/leunghope/EasyFireWall/security/advisories/new)** for private, coordinated disclosure. This keeps the report confidential until a fix is ready.
 
 ### What to include
 
