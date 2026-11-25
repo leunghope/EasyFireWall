@@ -137,7 +137,14 @@ jobs:
 
   deploy:
     name: Deploy to Pages
-    if: github.event_name == 'push'
+    # Publishing is the upstream repository's job. The legal pages need the
+    # LEGAL_YML secret — an Impressum without a controller's name and postal
+    # address breaks § 5 DDG, so the step refuses to run without it — and Pages
+    # has to be enabled for the environment to exist. A fork has neither, and
+    # skipping the job here keeps the run green: release.yml's main-is-green
+    # treats any red run on the tagged commit as "main is not green" and will
+    # not cut a release until it is.
+    if: github.event_name == 'push' && github.repository == 'jp1337/easywall'
     runs-on: ubuntu-26.04
     permissions:
       contents: read

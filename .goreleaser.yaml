@@ -43,111 +43,51 @@ archives:
       - CHANGELOG.md
 
 release:
-  # A tag carrying a prerelease part is published as a prerelease on GitHub, so
-  # it does not become "the latest release" there either — the same decision the
-  # `latest` image tag makes above, in the other place that decides it.
-  prerelease: auto
+  # Every tag in this fork carries a `-zh.N` suffix, which semver reads as a
+  # prerelease part — with `auto` every release here would be published as a
+  # prerelease, and a prerelease is never "the latest release" on GitHub. The
+  # documented install command, /releases/latest/download/easywall_amd64.deb,
+  # then answers 404 on a repository whose only releases are prereleases.
+  # This fork releases one line, and that line is the current one.
+  prerelease: false
 
 checksum:
   name_template: "checksums.txt"
 
 changelog:
-  sort: asc
-  use: github
-  filters:
-    exclude:
-      - "^chore(deps)"
-      - "^docs"
-      - "Merge pull request"
-      - "Merge branch"
-  groups:
-    - title: "Security"
-      regexp: "^security"
-      order: 0
-    - title: "Features"
-      regexp: "^feat"
-      order: 1
-    - title: "Bug Fixes"
-      regexp: "^fix"
-      order: 2
-    - title: "Other"
-      order: 999
+  # GoReleaser diffs the previous tag to write the release body. The GitHub
+  # remote starts without a single tag, so "since the previous tag" is the
+  # entire history and the body would be every commit ever made. The body is
+  # the CHANGELOG.md section for the version instead — release.yml writes it
+  # in the step after this one, from the same file the documentation site
+  # renders, so there is still only one place a release note is written.
+  disable: true
 
 dockers_v2:
-  # GHCR and Docker Hub. release.yml already treats every registry but GHCR as
-  # optional — it skips the login when the token is absent — but this file used to
-  # push to all three unconditionally, so one registry refusing a token failed the
-  # whole release *after* the other two had been written. v2.4.0 hit exactly that:
-  # the images reached GHCR and Docker Hub, Quay answered 401, and GoReleaser
-  # aborted before creating the GitHub release, leaving no binaries and no notes.
-  #
-  # Quay is now its own entry so it can be skipped without taking the release with
-  # it. The mirrors are a convenience; the release is not.
+  # GHCR only. Upstream built the same image three times and pushed it to GHCR,
+  # Docker Hub and Quay; this fork has credentials for none of the mirrors, and a
+  # registry named from an empty secret renders as `docker.io//easywall`, which
+  # the push rejects — taking the release with it *after* the images had already
+  # been written. v2.4.0 upstream hit the same shape when Quay answered 401 and
+  # GoReleaser aborted before creating the GitHub release, leaving no binaries
+  # and no notes. A mirror is a convenience; the release is not.
   - id: primary
     dockerfile: Dockerfile
-    # Docker Hub namespace comes from an env var set by release.yml
-    # (DOCKERHUB_USERNAME) so it can be changed without touching this file.
-    # The GHCR namespace is the GitHub org name and is stable.
     images:
-      - "ghcr.io/jp1337/easywall"
-      - "docker.io/{{ .Env.DOCKERHUB_USERNAME }}/easywall"
+      - "ghcr.io/leunghope/easyfirewall"
     tags:
+      # `.Tag` keeps the `v` — `:v2.29.2-zh.2` — which is what every example in
+      # installation/docker.md prints (`:v{{ site.version }}`) and what upstream
+      # shipped. The .deb carries the same version without it, because dpkg has
+      # its own idea of a version string; both are the same release.
       - "{{ .Tag }}"
-      # `latest` only for a stable release. release.yml triggers on `v*.*.*`,
-      # which also matches `v2.6.0-rc1`, and this list used to say `latest`
-      # unconditionally — so publishing a release candidate moved the tag that
-      # installation/docker.md calls the production one, and every `docker
-      # compose pull` on `:latest` would have taken the candidate.
-      #
-      # A prerelease repeats the version tag rather than rendering an empty
-      # string: `-t v2.6.0-rc1 -t v2.6.0-rc1` is a no-op, and an empty tag is
-      # not something to find out about during a release. The build itself is
-      # deliberately not duplicated into a second entry — two blocks that must
-      # stay identical apart from the tag is how the `latest` image comes to be
-      # built from a different file list than the version it claims to be.
-      - '{{ if eq .Prerelease "" }}latest{{ else }}{{ .Tag }}{{ end }}'
-    platforms:
-      - linux/amd64
-      - linux/arm64
-    build_args:
-      VERSION: "{{ .Version }}"
-      # The commit the release was cut from. The Dockerfile turns it into
-      # org.opencontainers.image.revision, which installation/docker.md tells
-      # operators to read back — and which release images did not carry at all.
-      REVISION: "{{ .FullCommit }}"
-    extra_files:
-      - go.mod
-      - go.sum
-      - cmd/
-      - internal/
-      - web/
-      - locales/
-      - config/
-      - docker/
-
-  # Skipped when QUAY_NAMESPACE is unset, or when QUAY_SKIP is set to "1" — which
-  # is how a rejected or expired robot token gets worked around without editing
-  # this file or holding up a release.
-  - id: quay
-    disable: '{{ or (eq .Env.QUAY_NAMESPACE "") (eq .Env.QUAY_SKIP "1") }}'
-    dockerfile: Dockerfile
-    images:
-      - "quay.io/{{ .Env.QUAY_NAMESPACE }}/easywall"
-    tags:
-      - "{{ .Tag }}"
-      # `latest` only for a stable release. release.yml triggers on `v*.*.*`,
-      # which also matches `v2.6.0-rc1`, and this list used to say `latest`
-      # unconditionally — so publishing a release candidate moved the tag that
-      # installation/docker.md calls the production one, and every `docker
-      # compose pull` on `:latest` would have taken the candidate.
-      #
-      # A prerelease repeats the version tag rather than rendering an empty
-      # string: `-t v2.6.0-rc1 -t v2.6.0-rc1` is a no-op, and an empty tag is
-      # not something to find out about during a release. The build itself is
-      # deliberately not duplicated into a second entry — two blocks that must
-      # stay identical apart from the tag is how the `latest` image comes to be
-      # built from a different file list than the version it claims to be.
-      - '{{ if eq .Prerelease "" }}latest{{ else }}{{ .Tag }}{{ end }}'
+      # `latest` moves with every release here. Upstream held it back on
+      # prereleases because a `-rc` tag would otherwise repoint the tag that
+      # installation/docker.md calls the production one; in this fork every
+      # release is a `-zh.N`, so holding it back would mean `:latest` never
+      # moved at all — and docker-compose.yml pulls `:latest` when VERSION is
+      # unset.
+      - "latest"
     platforms:
       - linux/amd64
       - linux/arm64

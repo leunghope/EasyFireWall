@@ -2,11 +2,10 @@ name: Publish edge
 
 # Multi-arch container builds for the public demo deployment.
 #
-# Triggers on every push to main. The image is pushed to three registries
-# (GHCR, Docker Hub, Quay.io) under the :edge and :sha-<sha> tags. The public
-# demo follows :edge on its own: a scheduled reset outside this repository
-# recreates it every six hours with the image pulled fresh. Nothing here
-# reaches the demo host.
+# Triggers on every push to main. The image is pushed to GHCR under the :edge
+# and :sha-<sha> tags. The public demo follows :edge on its own: a scheduled
+# reset outside this repository recreates it every six hours with the image
+# pulled fresh. Nothing here reaches the demo host.
 #
 # Released versions are handled separately by release.yml + GoReleaser
 # and use the :latest and :vX.Y.Z tags. The two flows do not overlap.
@@ -61,7 +60,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/jp1337/easywall
+          images: ghcr.io/leunghope/easyfirewall
 
       # Build a single-platform image and push it by digest (no tag yet).
       # GHA cache is scoped per platform so the layers don't mix.
@@ -75,7 +74,7 @@ jobs:
           build-args: |
             VERSION=edge-${{ github.sha }}
             REVISION=${{ github.sha }}
-          outputs: type=image,name=ghcr.io/jp1337/easywall,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/leunghope/easyfirewall,push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ steps.platform.outputs.suffix }}
           cache-to: type=gha,mode=max,scope=${{ steps.platform.outputs.suffix }}
 
@@ -102,12 +101,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    # Map secrets to env vars — secrets context is not available in step `if`,
-    # but env context is. This is the supported way to conditionally skip
-    # steps based on whether a secret is configured.
-    env:
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
 
     steps:
       - name: Download digest artifacts
@@ -120,18 +113,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # Generate :edge and :sha-<sha> tags for all three registries.
-      # Docker Hub and Quay namespaces come from repo secrets so they don't
-      # have to be hardcoded — change them by updating the secret, no
-      # workflow edit required.
+      # Generate :edge and :sha-<sha> tags. GHCR is the only registry this fork
+      # publishes to: the upstream repository also mirrors to Docker Hub and
+      # Quay, but there are no credentials here, and a registry whose namespace
+      # comes from an empty secret renders as `docker.io//easywall` — a name
+      # metadata-action will not accept, failing a build that had already
+      # succeeded.
       - name: Extract tags and labels
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: |
-            ghcr.io/jp1337/easywall
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/easywall
-            quay.io/${{ secrets.QUAY_NAMESPACE }}/easywall
+            ghcr.io/leunghope/easyfirewall
           tags: |
             type=raw,value=edge
             type=sha,prefix=sha-
@@ -143,61 +136,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        if: env.DOCKERHUB_TOKEN != ''
-        uses: docker/login-action@v4
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Log in to Quay.io
-        if: env.QUAY_TOKEN != ''
-        uses: docker/login-action@v4
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_TOKEN }}
-
-      # Push each registry's manifest separately. GHCR is the canonical
-      # source of truth and must succeed; Docker Hub is a desired mirror;
-      # Quay is a "best-effort" mirror — if it fails (e.g. robot account
-      # lacks repo-create permission), we log a GitHub warning and let
-      # the workflow continue so the demo deploy still rolls forward.
-      - name: Push manifests
+      - name: Push the manifest
         working-directory: /tmp/digests
         run: |
           set -euo pipefail
 
-          push_to() {
-            local registry="$1"
-            local tag_args
-            tag_args=$(jq -cr --arg r "$registry" \
-              '.tags | map(select(startswith($r)) | "-t " + .) | join(" ")' \
-              <<< "$DOCKER_METADATA_OUTPUT_JSON")
-            [[ -z "$tag_args" ]] && return 0
-            # shellcheck disable=SC2086
-            docker buildx imagetools create $tag_args \
-              $(printf 'ghcr.io/jp1337/easywall@sha256:%s ' *)
-          }
-
-          # GHCR — must succeed
-          push_to "ghcr.io"
-
-          # Docker Hub — must succeed if token is configured
-          if [[ -n "${DOCKERHUB_TOKEN:-}" ]]; then
-            push_to "docker.io"
-          fi
-
-          # Quay — best-effort. Robot accounts with limited permissions
-          # sometimes 401 on the manifest HEAD before push. Don't block
-          # the demo deploy on this; surface as a workflow warning so the
-          # operator can fix it and rerun without losing this build.
-          if [[ -n "${QUAY_TOKEN:-}" ]]; then
-            if ! push_to "quay.io"; then
-              echo "::warning title=Quay push failed::Manifest push to quay.io did not succeed. GHCR and Docker Hub are up to date; the demo will still update. Fix the robot account permissions on quay.io and rerun if you need quay.io in sync. See docs/installation/docker.md for the registry list."
-            fi
-          fi
+          # The per-platform builds pushed by digest; this assembles them into
+          # one multi-arch manifest and gives it the :edge and :sha-<sha> tags.
+          tag_args=$(jq -cr '.tags | map("-t " + .) | join(" ")' \
+            <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          [ -n "$tag_args" ] || { echo "::error::metadata-action produced no tags"; exit 1; }
+          # shellcheck disable=SC2086
+          docker buildx imagetools create $tag_args \
+            $(printf 'ghcr.io/leunghope/easyfirewall@sha256:%s ' *)
 
       - name: Inspect published image
-        run: docker buildx imagetools inspect ghcr.io/jp1337/easywall:edge
+        run: docker buildx imagetools inspect ghcr.io/leunghope/easyfirewall:edge

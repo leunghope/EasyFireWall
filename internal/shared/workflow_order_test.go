@@ -113,32 +113,58 @@ func TestTheSearchIndexIsBuiltBeforeThePagesUpload(t *testing.T) {
 	}
 }
 
-// A release candidate must not move `latest`.
+// A release must not be published as a prerelease, and `latest` must move with it.
 //
-// release.yml triggers on `v*.*.*`, and that glob matches `v2.6.0-rc1` as
-// happily as `v2.6.0`. The image tag list said `latest` unconditionally, so
-// publishing a candidate would have moved the tag installation/docker.md calls
-// the production one, and every `docker compose pull` on `:latest` would have
-// taken it. Nothing about that is visible until someone tags a candidate.
-func TestLatestImageTagIsOnlyForStableReleases(t *testing.T) {
+// Upstream's rule was the opposite: `release.yml` triggers on `v*.*.*`, that
+// glob matches `v2.6.0-rc1` as happily as `v2.6.0`, and an unconditional
+// `latest` would have handed a candidate to everyone pulling the tag
+// installation/docker.md calls the production one. So `latest` was made
+// conditional on `.Prerelease` and GitHub's side on `prerelease: auto`.
+//
+// This fork inverts it, deliberately. Every tag here is `v2.29.2-zh.N`, which
+// is a semver prerelease — `auto` would therefore mark every release a
+// prerelease, `/releases/latest/` would resolve to nothing, and the download
+// command in installation/debian.md (which asks for exactly that path) would go
+// back to being the 404 it was for years. And a `latest` guarded on
+// `.Prerelease` would never move either, while docker-compose.yml pulls
+// `:latest`.
+//
+// What the guard checks is the consequence, not the wording: the release is a
+// full release, and the image carries `latest` without a condition that would
+// freeze it.
+func TestEveryReleaseIsAFullReleaseWithLatest(t *testing.T) {
 	cfg := repoFile(t, ".goreleaser.yaml")
 
-	// Every tag list that mentions latest has to make it conditional on there
-	// being no prerelease part.
-	for _, line := range strings.Split(cfg, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if !strings.Contains(trimmed, "latest") || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if !strings.Contains(trimmed, ".Prerelease") {
-			t.Errorf("an image is tagged latest without asking whether this is a prerelease:\n  %s", trimmed)
-		}
+	// `auto` is the dangerous value, and it is also the default — so an absent
+	// key is the failure the comment above describes.
+	if !strings.Contains(cfg, "prerelease: false") {
+		t.Error(".goreleaser.yaml does not set release.prerelease: false, so a " +
+			"-zh.N tag is published as a prerelease and /releases/latest/download/ " +
+			"resolves to nothing")
+	}
+	if strings.Contains(cfg, ".Prerelease") {
+		t.Error("an image tag is conditional on .Prerelease, which is non-empty for " +
+			"every -zh.N tag: `latest` would never move")
 	}
 
-	// And GitHub should not call a candidate the newest release either.
-	if !strings.Contains(cfg, "prerelease: auto") {
-		t.Error(".goreleaser.yaml does not set release.prerelease, so a candidate " +
-			"is published as a full GitHub release")
+	inTags := false
+	latest := false
+	for _, line := range strings.Split(cfg, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "tags:"):
+			inTags = true
+		case inTags && strings.HasPrefix(trimmed, "- "):
+			if trimmed == `- "latest"` {
+				latest = true
+			}
+		case inTags && !strings.HasPrefix(trimmed, "#") && trimmed != "":
+			inTags = false
+		}
+	}
+	if !latest {
+		t.Error("the image tag list has no unqualified `latest`; " +
+			"docker-compose.yml pulls :latest and would follow a stale one")
 	}
 }
 

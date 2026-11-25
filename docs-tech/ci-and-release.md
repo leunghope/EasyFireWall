@@ -11,7 +11,7 @@ wrote, all behind green ticks.
 | `build.yml` | push, every PR | both binaries cross-compile, the image builds, and the `.deb` **installs, starts and answers** on both architectures |
 | `security.yml` | push to `main`, every PR, Mondays 08:00 UTC | CodeQL, `govulncheck`, `gosec` |
 | `docs.yml` | changes under `docs/`, `scripts/`, `package*.json` and a few more (its `paths:`) | the site builds (PR) and deploys to Pages (main) |
-| `publish-edge.yml` | push to `main` | multi-arch image to three registries as `:edge` and `:sha-…` |
+| `publish-edge.yml` | push to `main` | multi-arch image to GHCR as `:edge` and `:sha-…` |
 | `release.yml` | a `v*.*.*` tag | GoReleaser, then one `.deb` per architecture uploaded as a release asset, then one Discord embed |
 | `ai-disclosure.yml` | an issue or pull request opened or edited | nothing about the code: it labels `ai-generated` a description that begins with the disclosure `AGENTS.md` asks for. `pull_request_target`, so it checks nothing out and reads the text only from `env`. Catches only bots that read the repository |
 
@@ -191,11 +191,24 @@ finding nothing is the engine behaving as built, not a bug to fix.
 ```
 tag v*.*.*
    ├── main-is-green, tag-matches-the-tree ──► nothing is published unless both pass
-   ├── goreleaser ──► tarballs (amd64, arm64), checksums, images :latest/:vX.Y.Z
+   ├── goreleaser ──► tarballs (amd64, arm64), checksums, images :latest/:X.Y.Z
    ├── debian ──────► easywall_amd64.deb   (native amd64 runner)
    │                  easywall_arm64.deb   (native arm64 runner)
    └── announce ────► one embed in Discord   (needs both, best-effort)
 ```
+
+Two things about the GitHub side differ from upstream, both because this fork's
+tags are `vX.Y.Z-zh.N` and its GitHub remote has no earlier tag to diff against:
+
+- `release.prerelease: false`. A `-zh.N` tag is a semver prerelease, so
+  GoReleaser's `auto` would mark every release as one — and a prerelease is not
+  what `/releases/latest/` resolves to, which is the URL the install command in
+  `installation/debian.md` prints.
+- `changelog: disable: true`. GoReleaser would otherwise generate the notes from
+  every commit reachable from a tag with no previous tag to stop at — all 3,000
+  lines of it. The body is instead the `CHANGELOG.md` section for the version,
+  copied by the step after GoReleaser runs: one file written, two places read it
+  (the release and the documentation site).
 
 The `.deb` is built with `dpkg-buildpackage`, deliberately **not** GoReleaser's
 `nfpm`. `debian/` is the one description of this package — permissions, postinst,
@@ -248,11 +261,14 @@ looking for a job that does not exist.
 ### `publish-edge.yml`
 
 Native build per platform, pushed **by digest** with no tag; a merge job then
-creates the manifest in all three registries. Cross-building with QEMU inside one
-buildx invocation is dramatically slower.
+creates the manifest. Cross-building with QEMU inside one buildx invocation is
+dramatically slower.
 
-GHCR must succeed, Docker Hub must succeed if its token is configured, Quay is
-best-effort and downgrades to a workflow warning.
+One registry in this fork: GHCR. Upstream also mirrors to Docker Hub and Quay,
+but both namespaces came from secrets a fork does not have — and an empty one
+renders as `docker.io//easywall`, a name the metadata action rejects, so the
+push fails the run *after* the build that had already succeeded. The image is
+`ghcr.io/leunghope/easyfirewall`.
 
 Nothing in it deploys. The public demo follows `:edge` through a reset that runs
 outside this repository every six hours and recreates the container with the
