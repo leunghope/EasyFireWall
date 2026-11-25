@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.29.2-zh.2] — 2026-11-25
+
+**第一个由 GitHub Actions 构建并发布的版本。**
+
+### 变更
+
+- **仓库迁到 GitHub**：`github.com/leunghope/EasyFireWall`。README 徽章与安装命令、
+  issue 与安全公告入口、文档站里的仓库链接全部指向新地址。`git clone` 之后进入的
+  目录叫 `EasyFireWall`（`git` 按仓库名建目录），文档里的 `cd` 已一并改过；程序名、
+  包名和安装路径仍然是 `easywall`。
+- **发布交给 GitHub Actions**：推 tag 后由 GoReleaser 产出 linux amd64/arm64 的
+  tar.gz 与 `checksums.txt`，再由 debian job 在 `ubuntu-24.04` 和 `ubuntu-24.04-arm`
+  上执行 `dpkg-buildpackage`，打出 `easywall_amd64.deb`、`easywall_arm64.deb` 一并
+  挂到 release。
+- **文档里写了很久的下载地址现在能用了**：`/releases/latest/download/easywall_amd64.deb`
+  此前一直 404——.deb 只作为 CI 附件存在，七天过期，还得登录才能下载。本版起可以
+  直接 `wget`。
+- **容器镜像**：改推 `ghcr.io/leunghope/easyfirewall`，`:latest` 跟随每次发布，
+  `:v2.29.2-zh.2` 固定到本版。
+
+### 说明
+
+- 防火墙行为、socket 协议、规则构建与包内容与 2.29.2-zh.1 完全一致，本版只动了
+  仓库地址与发布流水线；简体中文本地化的内容见上一版。
+
 ## [2.29.2-zh.1] — 2026-11-25
 
 **简体中文本地化版本。**
@@ -3183,7 +3208,8 @@ After explicit configuration the following ICMPv6 types are allowed additionally
 - easywall Firewall Core Part running as root user finished
 - The New easywall will be one part running as root and one part running as easywall user which has access to config files.
 
-[Unreleased]: https://github.com/jp1337/easywall/compare/v2.29.2-zh.1...HEAD
+[Unreleased]: https://github.com/leunghope/EasyFireWall/compare/v2.29.2-zh.2...HEAD
+[2.29.2-zh.2]: https://github.com/leunghope/EasyFireWall/releases/tag/v2.29.2-zh.2
 [2.29.2-zh.1]: https://git.f-tuan.com/leunghope/easywall/releases/tag/v2.29.2-zh.1
 [2.29.2]: https://github.com/jp1337/easywall/compare/v2.29.1...v2.29.2
 [2.29.1]: https://github.com/jp1337/easywall/compare/v2.29.0...v2.29.1

@@ -16,6 +16,8 @@ until you open them. This page is generated from
 which is the file GitHub and the release tooling read.
 
 <nav class="changelog-versions" aria-label="Versions">
+  <a href="#2.29.2-zh.2">2.29.2-zh.2</a>
+  <a href="#2.29.2-zh.1">2.29.2-zh.1</a>
   <a href="#2.29.2">2.29.2</a>
   <a href="#2.29.1">2.29.1</a>
   <a href="#2.29.0">2.29.0</a>
@@ -87,7 +89,62 @@ which is the file GitHub and the release tooling read.
   addEventListener('hashchange', openTarget);
 </script>
 
-<details open id="2.29.2" markdown="1">
+<details open id="2.29.2-zh.2" markdown="1">
+<summary><strong>2.29.2-zh.2</strong> · 2026-11-25 — 第一个由 GitHub Actions 构建并发布的版本。</summary>
+
+### 变更
+
+- **仓库迁到 GitHub**：`github.com/leunghope/EasyFireWall`。README 徽章与安装命令、
+  issue 与安全公告入口、文档站里的仓库链接全部指向新地址。`git clone` 之后进入的
+  目录叫 `EasyFireWall`（`git` 按仓库名建目录），文档里的 `cd` 已一并改过；程序名、
+  包名和安装路径仍然是 `easywall`。
+- **发布交给 GitHub Actions**：推 tag 后由 GoReleaser 产出 linux amd64/arm64 的
+  tar.gz 与 `checksums.txt`，再由 debian job 在 `ubuntu-24.04` 和 `ubuntu-24.04-arm`
+  上执行 `dpkg-buildpackage`，打出 `easywall_amd64.deb`、`easywall_arm64.deb` 一并
+  挂到 release。
+- **文档里写了很久的下载地址现在能用了**：`/releases/latest/download/easywall_amd64.deb`
+  此前一直 404——.deb 只作为 CI 附件存在，七天过期，还得登录才能下载。本版起可以
+  直接 `wget`。
+- **容器镜像**：改推 `ghcr.io/leunghope/easyfirewall`，`:latest` 跟随每次发布，
+  `:v2.29.2-zh.2` 固定到本版。
+
+### 说明
+
+- 防火墙行为、socket 协议、规则构建与包内容与 2.29.2-zh.1 完全一致，本版只动了
+  仓库地址与发布流水线；简体中文本地化的内容见上一版。
+
+[See the code as first released](https://github.com/leunghope/EasyFireWall/releases/tag/v2.29.2-zh.2)
+
+</details>
+
+<details id="2.29.2-zh.1" markdown="1">
+<summary><strong>2.29.2-zh.1</strong> · 2026-11-25 — 简体中文本地化版本。</summary>
+
+### 新增
+
+- **中文界面**：`locales/zh.json` 收录全部 934 个字符串，与 `en` 完全对齐；语言选择器、
+  首启向导和每一个设置页都能显示简体中文。
+- **中文文档**：`docs/` 全站中文——首页、安装、功能说明、参考页——搜索索引改为
+  强制中文分词构建；`README.md` 同步翻译。
+- **语言接入**：`docs/schemas/web.schema.json` 的 `language` 枚举加入 `zh`，
+  `locales/status.json` 按 CONTRIBUTING 的流程把它标记为未评审。
+
+### 变更
+
+- 六个 guard test 适配中文：非 ASCII 路径、中文句号分句、中文空结果文案。
+- `scripts/ui-check.mjs` 增加 `--accept-lang=en-US`，浏览器语言不再影响断言。
+- `docs/assets/css/style.css` 用 `npm run build:docs-css` 重建。
+
+### 说明
+
+- 防火墙行为、socket 协议、规则构建与打包与 2.29.2 完全一致，本版本只在上面
+  叠加了翻译。
+
+[See the code as first released](https://git.f-tuan.com/leunghope/easywall/releases/tag/v2.29.2-zh.1)
+
+</details>
+
+<details id="2.29.2" markdown="1">
 <summary><strong>2.29.2</strong> · 2026-10-30 — What an audit turned up</summary>
 
 ### Security

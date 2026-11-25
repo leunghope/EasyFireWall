@@ -1,3 +1,22 @@
+easywall (2.29.2-zh.2) unstable; urgency=medium
+
+  * The repository moved to github.com/leunghope/EasyFireWall: the README
+    badges, the install commands, the issue and security-advisory entry
+    points and the documentation site all name the new address.
+  * Releases are built and published by GitHub Actions. GoReleaser produces
+    the linux amd64/arm64 tarballs and their checksums; the debian job runs
+    dpkg-buildpackage on ubuntu-24.04 and ubuntu-24.04-arm and attaches
+    easywall_amd64.deb and easywall_arm64.deb to the release, so the
+    /releases/latest/download/ URL the documentation has always printed now
+    resolves.
+  * Container images are published to ghcr.io/leunghope/easyfirewall, with
+    :latest following each release.
+  * No change to the firewall, the socket protocol, the rule builder or what
+    the package installs: this is the 2.29.2-zh.1 tree with the repository
+    and the release pipeline moved.
+
+ -- Leung Hope <leunghope@users.noreply.github.com>  Wed, 25 Nov 2026 19:20:00 +0800
+
 easywall (2.29.2-zh.1) unstable; urgency=medium
 
   * Simplified Chinese localisation: locales/zh.json carries all 934 keys at
