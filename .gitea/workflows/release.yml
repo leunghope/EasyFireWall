@@ -166,16 +166,27 @@ jobs:
             tar -C out -czf "out/easywall_${version}_linux_${arch}.tar.gz" "easywall_${version}_linux_${arch}"
             # Ask the artefact, not the build: a tar that silently lost a
             # directory is exactly the failure a green build hides.
+            #
+            # Two traps here, both found by running it. `grep -q` exits on the
+            # first match, tar gets SIGPIPE, and `set -o pipefail` turns that
+            # into a failure that looks like a missing file — so the listing is
+            # captured once and grepped without -q. And tar lists a directory
+            # with a trailing slash and a file without one, so both spellings
+            # are accepted.
+            listing=$(tar -tzf "out/easywall_${version}_linux_${arch}.tar.gz")
             for f in easywall-core easywall-web web locales config systemd \
                      README.md LICENSE CHANGELOG.md; do
-              tar -tzf "out/easywall_${version}_linux_${arch}.tar.gz" \
-                | grep -qx "easywall_${version}_linux_${arch}/$f" \
+              printf '%s\n' "$listing" \
+                | grep -Fx -e "easywall_${version}_linux_${arch}/$f" \
+                           -e "easywall_${version}_linux_${arch}/$f/" > /dev/null \
                 || { echo "::error::$arch tarball has no $f"; exit 1; }
             done
             case "$arch" in
-              amd64) file "$dir/easywall-core" | grep -q "x86-64" ;;
-              arm64) file "$dir/easywall-core" | grep -q "aarch64" ;;
-            esac || { echo "::error::$arch binary is not $arch"; exit 1; }
+              amd64) want=x86-64 ;;
+              arm64) want=aarch64 ;;
+            esac
+            file "$dir/easywall-core" | grep -F "$want" > /dev/null \
+              || { echo "::error::$arch binary is not $arch"; exit 1; }
             echo "ok  easywall_${version}_linux_${arch}.tar.gz"
           done
 
@@ -199,11 +210,12 @@ jobs:
           [ "$got" = "$version" ] || { echo "::error::$deb says $got, the tag is $version"; exit 1; }
           arch=$(dpkg-deb --field "$deb" Architecture)
           [ "$arch" = "amd64" ] || { echo "::error::$deb is $arch, this runner builds amd64"; exit 1; }
-          dpkg-deb --contents "$deb" | grep -q 'usr/share/easywall/locales/zh.json' \
+          dpkg-deb --contents "$deb" | grep -F 'usr/share/easywall/locales/zh.json' > /dev/null \
             || { echo "::error::$deb does not carry the Chinese locale"; exit 1; }
 
           dpkg-deb --fsys-tarfile "$deb" | tar -xO ./usr/sbin/easywall-core > /tmp/core
-          file /tmp/core | grep -q "x86-64" || { echo "::error::binary in the package is not amd64"; exit 1; }
+          file /tmp/core | grep -F "x86-64" > /dev/null \
+            || { echo "::error::binary in the package is not amd64"; exit 1; }
 
           cp "$deb" "out/easywall_${version}_amd64.deb"
           echo "ok  $deb — $got, $arch"
