@@ -226,7 +226,17 @@ jobs:
           # Last, so the manifest covers every asset the release carries — a
           # checksum file that omits the .deb is worse than none, because it
           # looks complete.
-          ( cd out && sha256sum $(ls -1 easywall_*) > checksums.txt )
+          #
+          # Files only, and asked one at a time: `sha256sum $(ls -1 easywall_*)`
+          # also matched the two build directories, and `ls` answers a directory
+          # with its *contents* — so the arguments became easywall-core, web,
+          # locales and the rest, and sha256sum exited 1 on a tree that was
+          # perfectly fine.
+          : > out/checksums.txt
+          for f in out/easywall_*; do
+            [ -f "$f" ] || continue
+            ( cd out && sha256sum "$(basename "$f")" ) >> out/checksums.txt
+          done
           cat out/checksums.txt
 
       # A daemon is not a given on a self-hosted runner; when it is missing the
@@ -281,7 +291,11 @@ jobs:
           ' CHANGELOG.md)
           [ -n "$body" ] || { echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
 
-          assets=$(cd out && ls -1 easywall_* checksums.txt | sort)
+          # Files only — `ls -1 easywall_*` also matches the build directories
+          # and answers them with their contents.
+          assets=$(cd out && for f in easywall_* checksums.txt; do
+                     if [ -f "$f" ]; then printf '%s\n' "$f"; fi
+                   done | sort)
           table=$(printf '%s\n' "$assets" | sed 's/^/- `&`/')
           if [ -n "${IMAGE_PUSHED:-}" ]; then
             note="_容器镜像：\`${IMAGE_PUSHED}\` 与 \`:zh\`_"
@@ -308,7 +322,7 @@ jobs:
           fi
           [ -n "${id:-}" ] && [ "$id" != "null" ] || { echo "::error::no release id came back"; exit 1; }
 
-          for f in $(cd out && ls -1 easywall_* checksums.txt); do
+          for f in $assets; do
             name=$(basename "$f")
             # Re-running a release must replace an asset, not 409 on one already
             # there. Gitea has no clobber flag, so the old one goes first.
