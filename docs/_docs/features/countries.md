@@ -1,53 +1,47 @@
 ---
 layout: default
-title: Countries
-description: Block the addresses registered to a country — each one switched on by itself, checked after your allowlist and after every feed.
+title: 国家/地区
+description: 拦截登记在某个国家/地区名下的地址——每个国家/地区单独开启，在你的允许列表之后、每个列表源之后检查。
 ---
 
-# Block a country
+# 拦截国家/地区
 
-A country is a list of the networks registered to it. Like a
-[feed]({{ '/docs/features/feeds/' | relative_url }}), it is checked **after**
-your allowlist, so an address you allow stays reachable. An address that is in a
-feed as well is counted and logged by the feed. A country also drops
-the forwarded packets the `forward` chain filters, to a container or a routed
-network.
+国家/地区是一组登记在它名下的网络。和
+[列表源]({{ '/docs/features/feeds/' | relative_url }})一样，它在你的允许列表**之后**检查，
+因此你允许的地址仍然可达。同时也出现在某个列表源中的地址，由该列表源计数并记录。
+国家/地区还会丢弃 `forward` 链所过滤的、发往容器或路由网络的转发数据包。
 
-**Which ones do your drops come from?** The
-[country column]({{ '/docs/features/blocked-traffic/' | relative_url }}#where-it-comes-from)
-on Blocked traffic shows it. A row's **Block country** stages its country here.
+**被拦下的数据包来自哪些国家/地区？**
+[被拦截的流量]({{ '/docs/features/blocked-traffic/' | relative_url }}#where-it-comes-from)
+页面上的国家/地区列会显示出来。某一行上的**拦截国家/地区**会把该国家/地区暂存到这里。
 
-## Add a country
+## 添加国家/地区
 
-1. Open **Blocklist** and scroll to **Countries**.
-2. Choose the country and press **Add**. It is staged like any rule.
-3. Wait until the country's row shows **Entries**. Apply earlier and easywall
-   refuses and says so. If the copy never arrives, switch the country off.
-4. Open **Apply Rules** and press **Apply now**.
-5. Press **Confirm rules** within the window, or the country rolls back.
+1. 打开**拦截列表**，滚动到**国家/地区**。
+2. 选择国家/地区，按**添加**。它会像任何规则一样被暂存。
+3. 等到该国家/地区所在行显示**条目数**。提前应用的话，easywall 会拒绝并说明原因。
+   如果副本始终没有到达，就把这个国家/地区关掉。
+4. 打开**应用规则**，按**立即应用**。
+5. 在窗口内按**确认——一切仍正常**，否则该国家/地区会回滚。
 
-**Remove** takes it out again; apply and confirm as above. The row's
-*Last refresh*, *Entries* and warnings read like a feed's: see
-[When a feed fails]({{ '/docs/features/feeds/' | relative_url }}#when-a-feed-fails).
+**移除**会再次把它去掉；照上面的步骤应用并确认。行上的
+*上次刷新*、*条目数*和警告，读法都和列表源相同：见
+[列表源失败时]({{ '/docs/features/feeds/' | relative_url }}#when-a-feed-fails)。
 
-## What it cannot do
+## 它做不到什么 {#what-it-cannot-do}
 
-- **A registration is not a location.** The list says where a network was
-  registered, not where a packet comes from. VPNs, cloud regions and Tor exits
-  do not follow it.
-- **It only blocks.** *Allow only these countries* is not this feature. Its
-  inverse would block the address you manage the host from as soon as you
-  travel.
-- **A refresh has no acceptance window.** If a regional registry transfers an
-  address block into a country you switched on, the next daily refresh blocks
-  it without asking. Put the addresses you manage the host from on the
-  [allowlist]({{ '/docs/features/allowlist/' | relative_url }}) first; it is
-  checked before every feed and country.
-- **Blocking the United States blocks Googlebot and Bingbot.** A crawler that
-  cannot reach your site drops it from search. Allowlist the ranges the vendors
-  publish
-  ([Googlebot](https://developers.google.com/static/crawling/ipranges/common-crawlers.json),
-  [Bingbot](https://www.bing.com/toolbox/bingbot.json)), or leave it off.
+- **登记地不是位置。** 列表说明的是网络登记在哪里，不是数据包来自哪里。
+  VPN、云区域和 Tor 出口都不遵守它。
+- **它只拦截。** *只允许这些国家/地区*不是这个功能。它的反面会在你一出行时，
+  就把你管理这台主机所用的地址拦掉。
+- **刷新没有确认窗口。** 如果某个区域性注册机构把一个地址段转到某个你已经开启的
+  国家/地区名下，下一次每日刷新就会直接拦截它，不再询问。请先把你管理这台主机所用的
+  地址放进[允许列表]({{ '/docs/features/allowlist/' | relative_url }})：它会在每个
+  列表源和国家/地区之前检查。
+- **拦截美国会连带拦截 Googlebot 和 Bingbot。** 抓取不到你站点的爬虫会把站点
+  从搜索结果中去掉。请把厂商公布的网段加入允许列表
+  （[Googlebot](https://developers.google.com/static/crawling/ipranges/common-crawlers.json)、
+  [Bingbot](https://www.bing.com/toolbox/bingbot.json)），或者干脆不开启它。
 
-Where the lists come from, how often they change and the limits: the
-[reference]({{ '/docs/features/feeds/#countries' | relative_url }}).
+列表从哪里来、多久变一次、有哪些限制：见
+[参考]({{ '/docs/features/feeds/#countries' | relative_url }})。

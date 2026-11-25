@@ -20,6 +20,7 @@ var endonyms = map[string][]string{
 	"en": {"English"},
 	"de": {"Deutsch", "German"},
 	"fr": {"Français", "French"},
+	"zh": {"简体中文", "Chinese"},
 }
 
 // languageEnumerations are the documents that tell a reader which languages the
@@ -137,8 +138,11 @@ func TestEveryEnumerationNamesEveryLanguage(t *testing.T) {
 	}
 }
 
-// languageNameRe matches any name any language is called by.
-var languageNameRe = regexp.MustCompile(`English|Deutsch|German|Français|French`)
+// languageNameRe matches any name any language is called by. The Chinese name
+// is written in Han characters rather than Latin ones, which is why the
+// alternation carries it verbatim: it is the one endonym here that
+// joinWordRe — deliberately Latin-only — cannot see the boundaries of.
+var languageNameRe = regexp.MustCompile(`English|Deutsch|German|Français|French|简体中文|Chinese`)
 
 // joinWordRe finds the words between two language names. Anything longer than
 // two letters that is not one of the connectives below means the two names are

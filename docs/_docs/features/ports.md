@@ -1,189 +1,123 @@
 ---
 layout: default
-title: Port Rules
-description: Which ports accept inbound connections, and why marking your SSH port matters.
+title: 端口规则
+description: 哪些端口接受入站连接，以及为什么标记你的 SSH 端口很重要。
 ---
 
-# Port Rules
+# 端口规则
 
-Ports that accept inbound connections on every interface. TCP and UDP are separate
-tabs; a rule is a port, a scope, an optional SSH mark, and a description for your
-own benefit.
+在所有接口上接受入站连接的端口。TCP 与 UDP 是两个独立的标签页；一条规则包含一个端口、一个范围、可选的 SSH 标记，以及一条为你自己方便而写的描述。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/ports" ext="png"
-     alt="The port rules page: TCP and UDP tabs, a filter box, and a table of ports with an SSH checkbox, a Scope selector, sources and a description, above context cards." %}
-  <figcaption>Filtering narrows what is already on the page, so unsaved edits survive it.</figcaption>
+     alt="端口规则页面：TCP 与 UDP 标签页、一个过滤框，以及一张端口表，表中含 SSH 复选框、范围选择器、来源和描述，表格位于几张说明卡片之上。" %}
+  <figcaption>过滤只是收窄页面上已有的内容，所以未保存的编辑不会因此丢失。</figcaption>
 </figure>
 
-## What you can write
+## 可以写什么
 
-| Form | Example | Opens |
+| 形式 | 示例 | 打开 |
 |---|---|---|
-| Single port | `443` | one port |
-| Range | `8000:9000` | 8000 to 9000, inclusive |
+| 单个端口 | `443` | 一个端口 |
+| 范围 | `8000:9000` | 8000 至 9000，含两端 |
 
-1–65535, ranges ascending.
+1–65535，范围必须递增。
 
-## Scope: where the rule is checked
+## 范围：规则在哪里检查
 
-Traffic addressed to this host arrives on a different chain from traffic this host
-passes on to a container. **Scope** says which one a rule is written for.
+发往本机的流量与由本机转发给容器的流量走不同的链。**范围**说明一条规则是为哪一条链写的。
 
-| Scope | The rule covers | Chain |
+| 范围 | 规则覆盖 | 链 |
 |---|---|---|
-| **This host** | connections to this machine's own addresses — the default, and what every rule written before 2.19 means | `input` |
-| **Forwarded** | connections this machine passes on, which is what a published container port is | `forward` |
-| **Both** | the same port, wherever it arrives | both |
+| **本机** | 发往本机自身地址的连接 —— 默认值，也是 2.19 之前写入的每条规则的含义 | `input` |
+| **转发** | 由本机转发的连接，即已发布的容器端口 | `forward` |
+| **两者** | 同一个端口，无论从哪里到达 | 两条链 |
 
-> **A forwarded rule does nothing until `published_ports` is `filtered`.** At the
-> key's default Docker decides who reaches a published port, and easywall takes no
-> verdict there. This page warns above the table when that is the case, rather than
-> leaving a rule that enforces nothing looking like one that does. The key lives in
-> `easywall.toml`, and
-> [Docker Coexistence]({{ '/docs/features/docker/' | relative_url }}) says what
-> switching it on closes.
+> **在 `published_ports` 设为 `filtered` 之前，转发规则不起作用。** 在这个键的默认值下，由 Docker 决定谁能到达已发布的端口，easywall 在那里不作判定。遇到这种情况时，本页会在表格上方给出警告，而不是让一条不执行任何操作的规则看起来像在执行。该键位于 `easywall.toml`，[Docker 共存]({{ '/docs/features/docker/' | relative_url }})说明了打开它会关闭什么。
 
-> **A forwarded rule names a port, not a container.** Two containers publishing
-> 8080 on different addresses are one rule and one verdict. Splitting them needs a
-> destination the rule cannot yet carry.
+> **转发规则指定的是端口，不是容器。** 两个容器在不同地址上发布 8080，共享一条规则和同一个判定。要把它们分开，需要一条规则目前还无法携带的目标地址。
 
-**Sources** works the same in either scope, and so does the last-used counter. SSH
-protection does not: the brute-force chain is an `input` module, so the mark is
-only meaningful on a rule this host receives.
+**来源**在两种范围下行为相同，最近使用计数器也一样。SSH 防护则不同：暴力破解链是一个 `input` 模块，所以这个标记只对本机接收的规则有意义。
 
-## Who may reach it
+## 谁可以访问它 {#who-may-reach-it}
 
-**Sources** is a comma-separated list of addresses and networks. Empty means
-everyone — what every rule written before 2.11 means, and still the default.
+**来源**是以逗号分隔的地址与网络列表。留空表示所有人 —— 这是 2.11 之前写入的每条规则的含义，现在仍是默认值。
 
-| Sources | Opens the port to |
+| 来源 | 将端口开放给 |
 |---|---|
-| *(empty)* | everyone |
-| `192.168.1.5` | one address |
-| `10.0.0.0/8, 192.168.0.0/16` | two networks |
-| `# not decided yet` | nobody — a comment is not an address |
+| *（空）* | 所有人 |
+| `192.168.1.5` | 一个地址 |
+| `10.0.0.0/8, 192.168.0.0/16` | 两个网络 |
+| `# not decided yet` | 无人 —— 注释不是地址 |
 
-Each usable entry becomes its own nft rule, matched on the source address before
-the port is tested. An [allowlist]({{ '/docs/features/allowlist/' | relative_url }})
-entry is still the way to allow an address on *every* port at once. A private
-network named here passes the [bogon filter]({{ '/docs/features/filters/' | relative_url }}#what-it-does-not-drop)
-for this port only.
+每个可用的条目都会变成一条独立的 nft 规则，在检查端口之前先匹配源地址。要让某个地址一次性在*所有*端口上获准，仍然要靠[允许列表]({{ '/docs/features/allowlist/' | relative_url }})条目。在这里写下的私有网络只对这个端口绕过[无效地址过滤]({{ '/docs/features/filters/' | relative_url }}#what-it-does-not-drop)。
 
-> **A network is matched by its network address.** `10.9.9.9/24` is applied as
-> `10.9.9.0/24` — 255 addresses more than you typed, and this page does not echo
-> the normalised form back. Ordinary CIDR behaviour, but here it decides who can
-> reach the port.
+> **网络按其网络地址匹配。** `10.9.9.9/24` 会按 `10.9.9.0/24` 应用 —— 比你输入的多了 255 个地址，而本页不会回显规范化后的形式。这是普通的 CIDR 行为，但在这里，它决定了谁能到达该端口。
 
-> **IPv6.** The catalogue's *private networks* suggestion fills in RFC 1918 and
-> `fc00::/7`. A LAN numbered out of global IPv6 space is not covered by any
-> constant. Add that range yourself, or the restriction locks you out over IPv6
-> while looking correct over IPv4.
+> **IPv6。** 服务目录的*私有网络*建议会填入 RFC 1918 地址段和 `fc00::/7`。从全局 IPv6 空间分配地址的局域网不在任何常量覆盖范围内。请自行添加该范围，否则这条限制会在 IPv6 上把你锁在外面，而在 IPv4 上看起来一切正常。
 
-## Last used
+## 最近使用
 
-The right-hand column says when the rule on that line last accepted a packet.
-Every rule easywall writes carries a kernel counter tagged with the rule's own
-id, read every five minutes and once more immediately before each write to the
-kernel. Rebuilding the table resets every counter in it, so the figure is booked
-before that happens rather than lost with it.
+右侧一列说明该行的规则上次接受数据包的时间。easywall 写入的每条规则都带有一个内核计数器，以规则自身的 id 标记，每五分钟读取一次，并在每次向内核写入之前再读取一次。重建表会重置其中所有计数器，所以这个数字会在重建之前被记下，而不是随之一并丢失。
 
-> **The counter follows the rule, not the port number.** A rule keeps its
-> identity for as long as it exists — that is what lets you edit the sources or
-> the description without throwing its history away. Renumber a row from `22` to
-> `9999` and the date beside it is still that row's own history. It can read
-> *9 minutes ago* for a port nothing has ever reached. To start clean, delete
-> the row and add the new port as a new one.
+> **计数器跟随规则，而不是端口号。** 一条规则在其存在期间保持自己的身份 —— 这正是你可以在不丢掉其历史的情况下修改来源或描述的原因。把一行的 `22` 改成 `9999`，旁边显示的日期仍是那一行自己的历史。对一个从未有流量到达的端口，它可能显示*9 分钟前*。要从零开始，请删掉该行，再把新端口作为新行添加。
 
-| The column says | It means |
+| 该列显示 | 含义 |
 |---|---|
-| `just now`, `3 days ago` | the last packet this rule accepted, to the resolution of the collection interval |
-| `never` | this rule has accepted nothing since easywall started counting it |
-| `—` | nothing is known: the rule has no id yet, or the counters could not be read |
+| `刚刚`、`3 天前` | 这条规则上次接受的数据包，精度取决于采集间隔 |
+| `从未使用` | 自 easywall 开始计数以来，这条规则没有接受过任何内容 |
+| `—` | 一无所知：规则还没有 id，或者计数器无法读取 |
 
-`never` and `—` are different claims and the difference matters. `never` is a
-measurement — this port has been open and nothing has come through it, which is
-what makes it worth closing. `—` is the absence of one, and a rule you have just
-added shows it until the next page load.
+`从未使用` 与 `—` 是两种不同的断言，区别很重要。`从未使用` 是一次测量 —— 这个端口一直开着，却没有任何流量通过，这正是它值得被关闭的原因。`—` 则是缺少测量，你刚添加的规则在下一次页面加载之前都会显示它。
 
-> **A rule that has never been used is not counted on the dashboard.** The tile
-> says *2 unused for 30+ days*, and it can only say that about rules with a
-> recorded use to date it from. A rule that has never carried anything has no
-> date at all, so it is left out of the count and reads `never` here instead. Both
-> are worth acting on; only one can be given a number.
+> **从未使用过的规则不会计入仪表盘。** 卡片上写着*2 个超过 30 天未使用*，而它只能对那些有使用记录、可据以推算日期的规则这么说。一条从未承载过任何流量的规则根本没有日期，所以它被排除在计数之外，而在这里显示 `从未使用`。两者都值得处理；但只有一个能给出数字。
 
-> **Custom rules carry no counter.** They are raw nftables statements written
-> through to the kernel as text, and easywall cannot tag one without changing what
-> you wrote. The [custom rules]({{ '/docs/features/custom-rules/' | relative_url }})
-> page has no such column, rather than a blank one that would read as *never used*.
+> **自定义规则没有计数器。** 它们是作为文本原样写入内核的裸 nftables 语句，easywall 无法在不改变你所写内容的前提下给它们打标记。[自定义规则]({{ '/docs/features/custom-rules/' | relative_url }})页面没有这样一列，而不是留一列空白、读起来像*从未使用*。
 
-> **The SSH limiter counts separately.** A connection dropped by the brute-force
-> limiter never reaches this rule and is not counted here. That is the right
-> answer for a column headed *Last used*: it says what got through, not what
-> knocked. The first is what you need to decide whether to close the port.
+> **SSH 限速器单独计数。** 被暴力破解限速器丢弃的连接根本到不了这条规则，也不在这里计数。对于名为*最近使用*的这一列来说，这是正确答案：它说的是什么通过了，而不是什么来敲过门。前者才是你决定是否关闭端口所需要的。
 
-Reading the counters costs one netlink read of one chain. `[usage] interval` in
-[the configuration reference]({{ '/docs/configuration/' | relative_url }}) sets
-how often, and `0` stops it — an apply still collects, so the column keeps
-advancing, just at the resolution of your applies.
+读取计数器需要一次针对一条链的 netlink 读取。[配置参考]({{ '/docs/configuration/' | relative_url }})中的 `[usage] interval` 设定频率，`0` 则停止 —— 应用时仍会采集，所以这一列会继续推进，只是精度取决于你应用的频率。
 
-## The catalogue
+## 服务目录
 
-**Add from catalogue** appends the rows a service listens on, with a suggested
-restriction filled in — everything editable, nothing applied until you apply it.
-The service name is kept on the rule as a label. It decides nothing: an entry
-that is later corrected or removed leaves your rule exactly as it was.
+**从目录添加**会追加某个服务监听的端口行，并填入一个建议的限制 —— 一切都可以编辑，在你应用之前不会生效。服务名会作为标签保留在规则上。它不决定任何事：之后被修正或移除的条目，你的规则仍保持原样。
 
-> **This page needs JavaScript.** Not only the catalogue button — the whole port
-> editor. Rows are collected in the browser and submitted as one field, which is
-> how this table has always worked, and the same is true of port forwarding. The
-> blocklist, allowlist and custom-rule pages are plain textareas and do not need
-> it.
+> **这个页面需要 JavaScript。** 不只是目录按钮 —— 整个端口编辑器都需要。各行在浏览器中收集，并作为一个字段提交，这张表一直是这样工作的，端口转发也一样。拦截列表、允许列表和自定义规则页面是纯文本域，不需要它。
 
-## Mark your SSH port
+## 标记你的 SSH 端口
 
-Ticking **SSH protection** routes that port through the brute-force chain, which
-rate-limits new connections per source address.
+勾选 **SSH 防护**会让该端口经过暴力破解链，从而按来源地址对新连接限速。
 
-> **Mark it even on a non-standard port.** The chain is applied per port, so 2222 is
-> protected exactly like 22 — but only if you tick it. If you mark nothing, easywall
-> meters 22 by default, which is the wrong port on a hardened host.
+> **即使使用非标准端口，也要标记它。** 这条链按端口应用，所以 2222 和 22 受到完全相同的保护 —— 但前提是你勾选了它。如果你什么都不标记，easywall 默认对 22 计数，而在已加固的主机上那是错误的端口。
 >
-> Metering is not opening. Since 2.11 the chain hands the packet back to the rest
-> of the input chain instead of accepting it, so a port is open only if a rule
-> opens it. Before 2.11 a marked-nothing host had 22 accepted by the module alone.
+> 计数不等于开放。自 2.11 起，这条链会把数据包交回 input 链的其余部分，而不是直接接受它，所以端口只有被某条规则打开才是开放的。在 2.11 之前，一个什么都没标记的主机会由该模块单独接受 22。
 
-Each source address gets its own budget, so somebody else being rate-limited does not
-affect you. An [allowlist]({{ '/docs/features/allowlist/' | relative_url }}) entry does not
-exempt you from it, though — protection modules are consulted before the allowlist,
-as the [rule order]({{ '/docs/features/filters/' | relative_url }}) shows.
+每个来源地址各有自己的额度，所以别人被限速不会影响你。不过[允许列表]({{ '/docs/features/allowlist/' | relative_url }})条目并不能让你豁免 —— 防护模块先于允许列表被查询，正如[规则顺序]({{ '/docs/features/filters/' | relative_url }})所示。
 
-The mark alone does nothing unless the module is switched on under
-[options]({{ '/docs/features/filters/' | relative_url }}) — it is on by default, limit 5.
+只有在[选项]({{ '/docs/features/filters/' | relative_url }})中打开该模块，这个标记才会起作用 —— 它默认开启，限值为 5。
 
-## Common sets
+## 常用组合
 
-| Server | TCP | UDP |
+| 服务器 | TCP | UDP |
 |---|---|---|
-| Web | `80`, `443` | — |
-| Mail | `25`, `465`, `587`, `993`, `995` | — |
+| Web | `80`、`443` | — |
+| 邮件 | `25`、`465`、`587`、`993`、`995` | — |
 | DNS | `53` | `53` |
 | WireGuard | — | `51820` |
-| Minecraft | `25565` (Java) | `25565` (Bedrock) |
-| SSH, moved | `2222` ✓ SSH protection | — |
+| Minecraft | `25565`（Java） | `25565`（Bedrock） |
+| SSH，已改端口 | `2222` ✓ SSH 防护 | — |
 
-## Nothing happens until you apply
+## 应用之前什么都不会发生
 
-Saving stages. Deleting stages too — the rule keeps working until you
-[apply]({{ '/docs/features/apply/' | relative_url }}).
+保存只是暂存。删除也是暂存 —— 规则会继续工作，直到你[应用]({{ '/docs/features/apply/' | relative_url }})。
 
-## When it does not work
+## 不生效时
 
-| Symptom | Cause | Check |
+| 现象 | 原因 | 检查 |
 |---|---|---|
-| Port open, connection refused | Nothing is listening | `ss -tlnp \| grep <port>` |
-| Port listed, still blocked | Not applied yet | Go to **Apply rules** |
-| Blocked despite being open | The source is on the [blocklist]({{ '/docs/features/blocklist/' | relative_url }}), which is checked first | |
-| SSH drops right after Apply | That is the design — do nothing and the old rules come back | |
-| A published container port is refused | The rule's scope is *This host*, so it was written for the wrong chain | Set it to *Forwarded* and check `published_ports` |
-| Your own SSH is rate-limited | You hit your own brute-force budget | Wait a minute, or raise `ssh_brute_force_connection_limit`. The allowlist does **not** help: modules run before it |
+| 端口开放，连接被拒绝 | 没有任何程序在监听 | `ss -tlnp \| grep <port>` |
+| 端口已列出，仍然被阻断 | 尚未应用 | 转到**应用规则** |
+| 已开放却仍被阻断 | 来源在[拦截列表]({{ '/docs/features/blocklist/' | relative_url }})上，而那个列表先被检查 | |
+| 应用后 SSH 立刻断开 | 这就是设计 —— 什么都不做，旧规则会回来 | |
+| 已发布的容器端口被拒绝 | 规则的范围是*本机*，所以它写给了错误的链 | 改为*转发*，并检查 `published_ports` |
+| 你自己的 SSH 被限速 | 你用掉了自己的暴力破解额度 | 等一分钟，或提高 `ssh_brute_force_connection_limit`。允许列表**帮不上忙**：模块先于它运行 |

@@ -1,80 +1,68 @@
 ---
 layout: default
-title: Blocklist
-description: A list of addresses that are dropped before the allowlist, the feeds and the port rules are considered.
+title: 拦截列表
+description: 一份在考虑允许列表、列表源和端口规则之前就被丢弃的地址列表。
 redirect_from:
   - /docs/features/blacklist/
 ---
 
-# Blocklist
+# 拦截列表
 
-A list of addresses that are dropped. It is consulted before the allowlist, the
-feeds and the port rules. It is **not** consulted before loopback, established
-connections, neighbour discovery and Docker networks — and under
-`ipv6.mode = "passthrough"` it never sees IPv6 at all (diagram below).
-It also drops every forwarded packet the `forward` chain filters — to a
-container or a routed network — before any forwarded port rule.
+一份被丢弃的地址列表。它在允许列表、列表源和端口规则之前被查询。它**不**在回环、已建立的连接、邻居发现和 Docker 网络之前被查询 —— 并且在 `ipv6.mode = "passthrough"` 下，它根本看不到 IPv6（见下图）。对于 `forward` 链所过滤的每一个转发数据包（发往容器或路由网络），它也会在任何转发端口规则之前将其丢弃。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/blocklist" ext="png"
-     alt="The blocklist page: a textarea of blocked addresses with a live entry count and context cards explaining what gets blocked and that the order matters, then a Feeds table with one row per curated list — its verdict, state, last refresh, entries and a switch — and the own feeds below it, then a Countries card listing the countries switched on, with a select to add another." %}
-  <figcaption>Every line is validated as you type, and the line number is named when one does not parse.</figcaption>
+     alt="拦截列表页面：一个填写被拦截地址的文本框，带实时条目计数，旁边是说明拦截范围与顺序为何重要的说明卡片；下方是列表源表格，每个精选列表一行 —— 判定、状态、上次刷新、条目数和一个开关 —— 再往下是自己的列表源；最后是一张国家/地区卡片，列出已启用的国家/地区，并带一个用于添加的选项框。" %}
+  <figcaption>每一行都边输入边校验，有一行解析不了时会指出行号。</figcaption>
 </figure>
 
-## The order
+## 顺序 {#the-order}
 
 {% include themed-figure.html base="/assets/diagrams/rule-order" ext="svg"
-   alt="Decision flow for an incoming packet: the fragment drop first, when it is on; then loopback; then the IPv6 mode, which accepts or drops all IPv6 outright unless it is set to filter; then the ping and reset rate limits, then established connections and neighbour discovery, then the other protection modules, then Docker bridge networks, then the blocklist which drops, then the allowlist which accepts every port, then the feeds you switched on which drop, then pings, when Answer pings is on, then open ports, then custom rules, and finally the chain policy which drops." %}
+   alt="入站数据包的判定流程：先丢弃分片（该开关打开时）；然后是回环；接着是 IPv6 模式，除非设为 filter，否则它会直接接受或直接丢弃所有 IPv6；然后是 ping 与 reset 速率限制，接着是已建立连接与邻居发现，再是其他防护模块，然后是 Docker 网桥网络，接着是拦截列表（丢弃），再是允许列表（接受所有端口），之后是你启用的列表源（丢弃），接着是 ping（响应 ping 打开时），然后是开放端口，再是自定义规则，最后是链策略（丢弃）。" %}
 
-**The blocklist wins.** An address on both lists is dropped, because the blocklist is
-evaluated before the allowlist. A narrow allow inside a wide block does not work — take the entry off
-the blocklist instead.
+**拦截列表优先。** 同时出现在两个列表中的地址会被丢弃，因为拦截列表在允许列表之前被评估。在宽泛的拦截范围内放行一个小网段是不起作用的 —— 改为把该条目从拦截列表中移除。
 
-> **Fixed in 2.11.** The SSH brute-force chain is consulted before the blocklist
-> and used to accept, so a blocklisted address could still open an SSH connection
-> while it stayed under the rate limit. It now returns, and the blocklist decides.
+> **2.11 已修复。** SSH 暴力破解链在拦截列表之前被查询，而且过去会直接接受，因此被拦截的地址只要还处在速率限制之下，仍然能建立 SSH 连接。现在它会返回，由拦截列表来决定。
 
-The list consulted immediately after this one is the
-[allowlist]({{ '/docs/features/allowlist/' | relative_url }}), which accepts.
-Lists other people publish come after both: [feeds]({{ '/docs/features/feeds/' | relative_url }}).
+紧接在它之后被查询的是[允许列表]({{ '/docs/features/allowlist/' | relative_url }})，它负责接受。别人发布的列表排在两者之后：[列表源]({{ '/docs/features/feeds/' | relative_url }})。
 
-## What it does
+## 它的作用
 
 | | |
 |---|---|
-| Effect | DROP |
-| Evaluated | before the allowlist, and before the port rules |
-| Skips the protection modules | no — those run first |
-| Use it for | a scanner, an abusive network |
+| 效果 | 丢弃（DROP） |
+| 评估时机 | 在允许列表之前，也在端口规则之前 |
+| 是否跳过防护模块 | 否 —— 防护模块先运行 |
+| 适用场景 | 扫描器、滥用网络 |
 
-## Accepted input
+## 可接受的输入
 
-One entry per line. Lines starting with `#` are comments; blank lines are ignored.
+每行一个条目。以 `#` 开头的行是注释；空行会被忽略。
 
-| Form | Example |
+| 形式 | 示例 |
 |---|---|
-| IPv4 address | `192.0.2.42` |
-| IPv4 network | `198.51.100.0/24` |
-| IPv6 address | `2001:db8::1` |
-| IPv6 network | `2001:db8::/32` |
+| IPv4 地址 | `192.0.2.42` |
+| IPv4 网段 | `198.51.100.0/24` |
+| IPv6 地址 | `2001:db8::1` |
+| IPv6 网段 | `2001:db8::/32` |
 
-The counter under the editor counts real entries — comments and blanks do not inflate it.
+编辑器下方的计数器统计真实条目 —— 注释和空行不会把它撑大。
 
-## When it does not work
+## 不生效时
 
-| Symptom | Cause |
+| 现象 | 原因 |
 |---|---|
-| A blocklisted address still gets through | The connection was already established; the list only affects new ones |
-| A blocklisted IPv6 address still gets through | `ipv6.mode = "passthrough"` accepts all IPv6 before the blocklist. Use `filter` |
-| An address you also allowlisted is still blocked | The blocklist is checked first, and it wins. Take the entry off the blocklist |
-| Nothing changed after saving | Saving stages. It goes live on [Apply]({{ '/docs/features/apply/' | relative_url }}) |
-| The editor names a line number | That line is not a valid address or CIDR; the message says why |
+| 被拦截的地址仍能通过 | 那条连接已经建立了；这个列表只影响新连接 |
+| 被拦截的 IPv6 地址仍能通过 | `ipv6.mode = "passthrough"` 会在拦截列表之前接受所有 IPv6。请改用 `filter` |
+| 你同时也放行到允许列表的地址仍被拦截 | 拦截列表先被检查，并且它优先。请把该条目从拦截列表中移除 |
+| 保存后没有任何变化 | 保存只是暂存。要[应用]({{ '/docs/features/apply/' | relative_url }})之后才会生效 |
+| 编辑器指出了行号 | 那一行不是合法的地址或 CIDR；提示信息会说明原因 |
 
-Need the network a single address belongs to?
+想知道单个地址属于哪个网段？
 
 ```bash
 whois 198.51.100.42 | grep -i route
 ```
 
-Logging blocklist hits is a switch on the [options page]({{ '/docs/features/filters/' | relative_url }});
-they appear in the kernel log with an `easywall blocklist:` prefix.
+记录拦截列表命中是[选项页面]({{ '/docs/features/filters/' | relative_url }})上的一个开关；命中会带 `easywall blocklist:` 前缀出现在内核日志中。

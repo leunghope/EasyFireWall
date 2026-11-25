@@ -1,203 +1,150 @@
 ---
 layout: default
-title: Feeds
-description: Block known attackers with lists other people publish — checked after your allowlist, each one off until you switch it on.
+title: 列表源
+description: 用别人发布的列表拦截已知攻击者 —— 在你的允许列表之后检查，每个列表源都默认关闭，直到你开启它。
 ---
 
-# Block known attackers with feeds
+# 用列表源拦截已知攻击者
 
-A feed is a list of attacking addresses that somebody else publishes and
-easywall fetches. Feeds are checked **after** your allowlist, so an address you
-allow stays reachable whatever a feed says. A feed also drops
-the forwarded packets the `forward` chain filters, to a container or a routed
-network. To block a
-whole country, see
-[Countries]({{ '/docs/features/countries/' | relative_url }}).
+列表源是一份由别人发布、由 easywall 抓取的攻击地址列表。列表源在你的允许列表**之后**被检查，所以只要某个地址被你放行，无论列表源怎么说，它都保持可达。列表源还会丢弃 `forward` 链所过滤的转发数据包，即发往容器或路由网络的那些。要拦截整个国家/地区，见[国家/地区]({{ '/docs/features/countries/' | relative_url }})。
 
 {% include themed-figure.html base="/assets/diagrams/feed-order" ext="svg"
-   alt="Four boxes in a row: your blocklist drops, then the allowlist accepts, then the feeds drop, then the port rules." %}
+   alt="一行四个方框：你的拦截列表丢弃，接着允许列表接受，接着列表源丢弃，最后是端口规则。" %}
 
-> **A feed applies to every port, web ports included.** A fail2ban-sourced list
-> blocks whatever address it names, wherever it connects.
-> **blocklist.de (all) holds search crawlers, an uptime monitor and Cloudflare**:
-> on 2026-10-15 it held Googlebot, Google's special crawlers, Bingbot, Applebot,
-> StatusCake and Cloudflare addresses. Of 9 captures since June, Bingbot and
-> StatusCake were in all 9 and Googlebot in 8; Cloudflare was measured only on
-> that day. A
-> crawler that cannot reach your site drops it from search; Bing's index also
-> feeds ChatGPT search. That is why it is ✗. **The SSH list had none in 11
-> samples** and is the recommended one. An installation that already has
-> blocklist.de (all) on keeps it on; switch to the SSH list on a host that
-> serves websites. To keep the full list, allowlist the ranges the vendors
-> publish
-> ([Googlebot](https://developers.google.com/static/crawling/ipranges/common-crawlers.json),
-> [Bingbot](https://www.bing.com/toolbox/bingbot.json)). Feeds are checked
-> after your allowlist, so an allowlisted range passes every feed. Blocking the
-> United States as a
-> [country]({{ '/docs/features/countries/' | relative_url }}) blocks both
-> crawlers whole.
+> **列表源作用于每一个端口，包括 Web 端口。** 来自 fail2ban 的列表会拦截它点名的任何地址，无论该地址从哪里连接。**blocklist.de (all) 收录了搜索引擎爬虫、一家在线监测服务和 Cloudflare**：2026-10-15 那天，它收录了 Googlebot、Google 的专用爬虫、Bingbot、Applebot、StatusCake 和 Cloudflare 的地址。自 6 月以来的 9 次采集中，Bingbot 和 StatusCake 9 次全在，Googlebot 出现 8 次；Cloudflare 只在那一天被观测到。无法访问你站点的爬虫会让站点从搜索中掉出去；Bing 的索引还供给 ChatGPT 搜索。这就是它带 ✗ 的原因。**SSH 列表在 11 次采样中一次都没有**，是推荐使用的那个。已经开启 blocklist.de (all) 的安装保持现状即可；如果这台主机对外提供网站，就换成 SSH 列表。若要保留完整列表，就把厂商公布的网段加入允许列表（[Googlebot](https://developers.google.com/static/crawling/ipranges/common-crawlers.json)、[Bingbot](https://www.bing.com/toolbox/bingbot.json)）。列表源在你的允许列表之后被检查，因此已加入允许列表的网段会通过每一个列表源。把美国作为一个[国家/地区]({{ '/docs/features/countries/' | relative_url }})拦截，会把这两个爬虫整体拦掉。
 
-## Start with Spamhaus DROP and DShield
+## 从 Spamhaus DROP 和 DShield 开始
 
-1. Open **Blocklist** and scroll to **Feeds**.
-2. Switch on *Spamhaus DROP* and *DShield top block list*.
-3. Press **Save**. The switch is staged like any rule.
-4. Open **Apply Rules** and press **Apply now**. If the verdict names a feed
-   that holds your own address, add that address to the
-   [allowlist]({{ '/docs/features/allowlist/' | relative_url }}) first.
-5. Press **Confirm rules** within the window, or the switch rolls back.
+1. 打开**拦截列表**，滚动到**列表源**。
+2. 启用 *Spamhaus DROP* 和 *DShield top block list*。
+3. 按**保存**。这个开关和其他任何规则一样只是暂存。
+4. 打开**应用规则**，按**立即应用**。如果判定结果点出某个列表源命中了你自己的地址，先把该地址加入[允许列表]({{ '/docs/features/allowlist/' | relative_url }})。
+5. 在窗口内按**确认规则**，否则这个开关会回滚。
 
-Later refreshes load a new copy **without** an acceptance window. Allowlist the
-address you manage this host from, so no copy can lock you out.
+之后的刷新会载入新副本，**不会**开启确认窗口。把你用来管理这台主机的地址加入允许列表，这样任何一份副本都锁不住你。
 
-Nothing is switched on for you. To see whom a feed refuses, switch on
-*Log feeds* on the [options page]({{ '/docs/features/filters/' | relative_url }});
-its hits appear on [Blocked]({{ '/docs/features/blocked-traffic/' | relative_url }})
-with the feed's name.
+没有任何列表源会替你开启。要查看某个列表源拒绝了谁，在[选项页面]({{ '/docs/features/filters/' | relative_url }})上启用 *记录列表源*；它的命中记录会带着列表源名称出现在[被拦截的流量]({{ '/docs/features/blocked-traffic/' | relative_url }})页面。
 
-## Choosing more
+## 再多选几个
 
-Every row in the Feeds card carries one of three marks. They follow firebog's.
+列表源卡片里的每一行都带三种标记之一。它们沿用 firebog 的做法。
 
-| Mark | Means | Switching it on |
+| 标记 | 含义 | 如何开启 |
 |---|---|---|
-| ✓ | least likely to lock out a legitimate client | as above |
-| • | useful, with a stated cost — the row names it | as above |
-| ✗ | a deliberate choice, not a default | tick the box under the switch, which names whom it locks out |
+| ✓ | 最不可能把合法客户端锁在外面 | 同上 |
+| • | 有用，但有明确代价 —— 该行会写明 | 同上 |
+| ✗ | 需要特意选择，不是默认项 | 勾选开关下方的复选框，那里写明会锁住谁 |
 
-A false positive here is a legitimate client that can no longer connect: a
-visitor, a webhook sender, a mail server, your own monitoring. Outbound traffic
-is never affected.
+这里的误报意味着某个合法客户端再也连不上：一位访客、一个 webhook 发送方、一台邮件服务器、你自己的监测。出站流量永远不会受影响。
 
-## An own feed
+## 自有列表源
 
-Up to three lists of your own, by address. Any plain-text list works: one
-address or network per line, `#` and `;` start a comment.
+最多三个按地址添加的自有列表。任何纯文本列表都可以：每行一个地址或网段，`#` 和 `;` 表示注释开始。
 
-1. On **Blocklist**, fill in one slot under **Own feeds**: a name, the address,
-   and a user and password if the list needs them.
-2. Press **Save**.
-3. Switch the feed on in **Feeds**, save, apply and confirm.
+1. 在**拦截列表**页面，在**自有列表源**下填写一个槽位：名称、地址，以及列表需要时的用户名和密码。
+2. 按**保存**。
+3. 在**列表源**中开启该列表源，保存、应用并确认。
 
-**Remove** empties a slot only once its feed is switched off and applied.
+**移除**只有在对应列表源已关闭并应用之后才会清空槽位。
 
-| The address may be | Refused |
+| 地址可以是 | 会被拒绝 |
 |---|---|
-| `https://` to any host | a user or password inside the URL — use the two fields |
-| `http://` to a literal loopback address, such as `127.0.0.1` | `http://localhost`, and `http://` to any other host |
+| `https://` 指向任意主机 | URL 内含用户名或密码 —— 改用下面两个字段 |
+| `http://` 指向字面回环地址，如 `127.0.0.1` | `http://localhost`，以及 `http://` 指向其他任何主机 |
 
-An own feed is fetched once every 24 hours. It is not part of an
-[export]({{ '/docs/features/export-import/' | relative_url }}); where its
-password is stored is on the [security page]({{ '/docs/security/' | relative_url }}).
+自有列表源每 24 小时抓取一次。它不包含在[导出]({{ '/docs/features/export-import/' | relative_url }})中；密码存放在哪里见[安全页面]({{ '/docs/security/' | relative_url }})。
 
-### Example: CrowdSec's Raw IP List
+### 示例：CrowdSec 的 Raw IP List
 
-CrowdSec serves the blocklists you subscribe to in its Console from one URL,
-with no CrowdSec engine installed.
+CrowdSec 用一个 URL 提供你在其 Console 中订阅的拦截列表，无需安装 CrowdSec 引擎。
 
-1. In the CrowdSec Console, create a **Raw IP List** integration and subscribe
-   it to the blocklists you want.
-2. Copy the endpoint and the Basic credentials. The credentials are shown
-   **once**.
-3. Enter them as an own feed.
+1. 在 CrowdSec Console 中创建一个 **Raw IP List** 集成，并订阅你想要的拦截列表。
+2. 复制端点地址和 Basic 凭据。凭据只显示**一次**。
+3. 把它们作为自有列表源填入。
 
 | | |
 |---|---|
-| Address | `https://admin.api.crowdsec.net/v1/integrations/<id>/content` |
-| User, password | the integration's Basic credentials |
-| Free plan | one pull per 24 hours — easywall's interval for an own feed — and at most three lists |
-| Terms | the [CrowdSec EULA](https://booking.crowdsec.net/crowdsec-eula) applies to the data |
+| 地址 | `https://admin.api.crowdsec.net/v1/integrations/<id>/content` |
+| 用户名、密码 | 该集成的 Basic 凭据 |
+| 免费套餐 | 每 24 小时拉取一次 —— 也就是 easywall 对自有列表源的间隔 —— 且最多三个列表 |
+| 条款 | 数据适用 [CrowdSec EULA](https://booking.crowdsec.net/crowdsec-eula) |
 
-CrowdSec's default *Pull limit* is 10 000 IPs per pull, and easywall fetches
-one page, so three subscribed lists can arrive partial. The limit is
-CrowdSec's, set on its side: see its [integration documentation](https://docs.crowdsec.net/u/integrations/intro).
+CrowdSec 默认的*拉取上限*是每次 10,000 个 IP，而 easywall 只抓取一页，因此三个订阅列表可能只到达一部分。这个上限由 CrowdSec 一侧设定：见其[集成文档](https://docs.crowdsec.net/u/integrations/intro)。
 
-Already running a CrowdSec engine? Its `cs-blocklist-mirror` serves your own
-decisions locally: use `http://127.0.0.1:41412/security/blocklist`.
+已经在运行 CrowdSec 引擎？它的 `cs-blocklist-mirror` 在本地提供你自己的判定结果：使用 `http://127.0.0.1:41412/security/blocklist`。
 
-## When a feed fails
+## 列表源失败时
 
-The previous copy stays active through every failure. A refresh never opens an
-acceptance window; switching a feed on or off does.
+每一次失败期间，上一份副本都保持生效。刷新永远不会打开确认窗口；开启或关闭列表源才会。
 
-| Last refresh | Means |
+| 上次刷新 | 含义 |
 |---|---|
-| Never fetched | no copy yet; switched on, it blocks nothing |
-| Updated | the last refresh brought a new version |
-| Unchanged | the server had nothing new |
-| Failed — the previous copy stays active | the *Error* line says why — *a web page, not a list* when the server sent HTML; the next try follows on its own |
-| Failed — no copy yet | as above, and the feed blocks nothing until a copy arrives |
+| 从未抓取 | 尚无副本；即使已开启，也不拦截任何流量 |
+| 已更新 | 上次刷新带来了新版本 |
+| 未变化 | 服务器上没有新内容 |
+| 失败 —— 上一份副本仍然生效 | *错误*行会说明原因 —— 服务器返回 HTML 时是*是网页，不是列表*；下一次尝试会自行进行 |
+| 失败 —— 尚无副本 | 同上，且在副本到达之前不拦截任何流量 |
 
-| Warning on the row | What to do |
+| 该行上的警告 | 该怎么办 |
 |---|---|
-| *In the kernel with an empty set* | nothing — it blocks once the first copy arrives |
-| *Unchanged for 30 days* | check the list's source page; a list that stops changing may be abandoned |
-| *Contains allowlist entries (N)* | nothing — those addresses stay reachable, which is the point of the order |
-| *Failed N times in a row* | read the *Error* line above it |
-| *Refused: shrank from N to M* | the core refuses a list under 70 % of the copy it holds. A list that stays that small for a day and three fetches in a row is taken, and the audit log says so. To take it sooner, switch the feed off and apply, then on — which fetches it at once — and apply |
-| *N lines were not an address* | the first five are shown — often a notice from the server among the addresses, such as a rate-limit sentence |
+| *已加载进内核但集合为空* | 无需处理 —— 第一份副本到达后就会拦截 |
+| *30 天未变化* | 检查该列表的来源页面；停止变化的列表可能已被放弃 |
+| *包含允许列表条目（N）* | 无需处理 —— 那些地址仍然可达，这正是这个顺序的意义 |
+| *连续失败 N 次* | 阅读它上方的*错误*行 |
+| *已拒绝：从 N 缩减到 M* | core 会拒绝小于它所存副本 70% 的列表。列表若以这个规模维持一天、并连续三次抓取都是如此，就会被采用，审计日志会说明这一点。要提前采用，先关闭该列表源并应用，再开启 —— 开启会立即抓取 —— 然后应用 |
+| *N 行不是地址* | 只显示前五行 —— 通常是服务器夹在地址中的一条通知，例如一句限速提示 |
 
-The core also refuses, whole, a list of more than 100 000 entries, or one with a
-network broader than /8 (IPv4) or /16 (IPv6). Private and reserved ranges are
-dropped from every feed without a warning, and *Entries* counts what is left.
+core 还会整体拒绝超过 100,000 条的列表，或包含比 /8（IPv4）或 /16（IPv6）更宽网段的列表。私有与保留网段会从每个列表源中静默剔除，*条目数*统计的是剩下的部分。
 
-`nft list table inet easywall` shows fewer elements in a feed's set than
-*Entries* says, and nothing is missing. The kernel's set holds ranges:
-adjacent or overlapping entries are merged into one before they are written.
-On a production host, CINS's 15 000 addresses were 10 410 ranges, and
-blocklist.de's 23 680 were 14 786.
+`nft list table inet easywall` 显示某个列表源的集合元素数少于*条目数*，但什么都没少。内核里的集合存的是网段：相邻或重叠的条目在写入之前会合并成一条。在一台生产主机上，CINS 的 15,000 个地址成了 10,410 个网段，blocklist.de 的 23,680 个成了 14,786 个。
 
-*Another change is being written*, with no window open, means a feed refresh
-held the apply slot for a moment. That is under a second, even at the largest list the core accepts.
-Press **Apply now** again; `easywall-core resume` waits for it on its own.
+在没有窗口打开时出现*另一项更改正在写入*，意味着某次列表源刷新短暂占用了应用槽位。即使面对 core 接受的最大列表，这也在一秒以内。再按一次**立即应用**；`easywall-core resume` 会自行等待它。
 
-## Reference: the catalogue
+## 参考：列表源目录
 
-### Measured 2026-10-15
+### 实测于 2026-10-15
 
-The figures are a snapshot. A release that changes a feed's verdict measures
-it again.
+这些数字是一份快照。若有版本改动了某个列表源的结论，会重新实测。
 
-| Feed | What it blocks | Entries | Poll |
+| 列表源 | 拦截什么 | 条目数 | 轮询 |
 |---|---|---|---|
-| [Spamhaus DROP](https://www.spamhaus.org/blocklists/do-not-route-or-peer/) | Netblocks that were hijacked or handed to criminals | 1710 + 91 (IPv4 + IPv6) | 12 h |
-| [DShield top block list](https://isc.sans.edu/api/) | The 20 /24 networks with the most scanning sources over the last three days | 20 × /24 | 1 h |
-| [blocklist.de (SSH)](https://www.blocklist.de/en/export.html) | Addresses fail2ban reported for SSH attacks in the last 48 hours | 4078 | 1 h |
-| [blocklist.de (IMAP, POP3)](https://www.blocklist.de/en/export.html) | Addresses fail2ban reported for IMAP, POP3 and SASL attacks in the last 48 hours | 4538 | 1 h |
-| [CINS Army](https://cinsscore.com/) | Addresses the CINS sensors saw attacking; always the latest 15 000 | 15 000 | 1 h |
-| [Emerging Threats compromised](https://rules.emergingthreats.net/OPEN_download_instructions.html) | Hosts known to be compromised | 686 | 1 h |
-| [blocklist.de (all)](https://www.blocklist.de/en/export.html) | Addresses fail2ban reported for attacks in the last 48 hours | 25 945 | 1 h |
-| [IPsum, on ≥ 3 lists](https://github.com/stamparm/ipsum) | Addresses on at least three of more than 30 public lists | 19 549 | 24 h |
-| [Hagezi threat intelligence IPs](https://github.com/hagezi/dns-blocklists) | Addresses from threat-intelligence sources, collected for DNS blocking | 36 487 | 24 h |
-| [Tor exit nodes](https://metrics.torproject.org/collector.html) | Every Tor exit relay | 1370 | 1 h |
+| [Spamhaus DROP](https://www.spamhaus.org/blocklists/do-not-route-or-peer/) | 曾被劫持或移交给犯罪分子的网段 | 1,710 + 91（IPv4 + IPv6） | 12 小时 |
+| [DShield top block list](https://isc.sans.edu/api/) | 过去三天内扫描源最多的 20 个 /24 网段 | 20 × /24 | 1 小时 |
+| [blocklist.de (SSH)](https://www.blocklist.de/en/export.html) | fail2ban 在过去 48 小时内报告的 SSH 攻击地址 | 4,078 | 1 小时 |
+| [blocklist.de (IMAP, POP3)](https://www.blocklist.de/en/export.html) | fail2ban 在过去 48 小时内报告的 IMAP、POP3 和 SASL 攻击地址 | 4,538 | 1 小时 |
+| [CINS Army](https://cinsscore.com/) | CINS 传感器观测到正在攻击的地址；始终是最新的 15,000 个 | 15,000 | 1 小时 |
+| [Emerging Threats compromised](https://rules.emergingthreats.net/OPEN_download_instructions.html) | 已知被入侵的主机 | 686 | 1 小时 |
+| [blocklist.de (all)](https://www.blocklist.de/en/export.html) | fail2ban 在过去 48 小时内报告的攻击地址 | 25,945 | 1 小时 |
+| [IPsum，出现在 ≥ 3 个列表上](https://github.com/stamparm/ipsum) | 在 30 多个公开列表中至少三个列表上出现的地址 | 19,549 | 24 小时 |
+| [Hagezi threat intelligence IPs](https://github.com/hagezi/dns-blocklists) | 来自威胁情报源、为 DNS 拦截而收集的地址 | 36,487 | 24 小时 |
+| [Tor exit nodes](https://metrics.torproject.org/collector.html) | 每一个 Tor 出口中继 | 1,370 | 1 小时 |
 
-What each costs, and where its terms are:
+每个列表源的代价，以及它的条款在哪里：
 
-| Feed | False positives | Verdict | Terms |
+| 列表源 | 误报 | 结论 | 条款 |
 |---|---|---|---|
-| Spamhaus DROP | practically none | ✓ | [terms](https://www.spamhaus.org/drop/terms/) |
-| DShield top block list | practically none | ✓ | [terms](https://isc.sans.edu/api/) |
-| blocklist.de (SSH) | some — dynamic and recycled addresses, some cloud hosts; no crawler or monitor since January 2026 | ✓ | [terms](https://www.blocklist.de/en/export.html) |
-| blocklist.de (IMAP, POP3) | some — as the SSH list; worth it only on a mail host | • | [terms](https://www.blocklist.de/en/export.html) |
-| CINS Army | some — about one in eleven is a cloud address | • | [terms](https://cinsscore.com/) |
-| Emerging Threats compromised | notable — a quarter are AWS and Google Cloud addresses; not for hosts that receive webhooks or monitoring from a cloud | • | [terms](https://rules.emergingthreats.net/open/suricata-7.0.3/LICENSE) |
-| blocklist.de (all) | yes — dynamic addresses, cloud hosts, and Googlebot, Bingbot, Applebot, StatusCake and Cloudflare | ✗ | [terms](https://www.blocklist.de/en/export.html) |
-| IPsum, on ≥ 3 lists | yes — an aggregate, some sources aggressive, with Tor exits | ✗ | [terms](https://github.com/stamparm/ipsum) |
-| Hagezi threat intelligence IPs | yes — cloud hosts and Tor exits | ✗ | [terms](https://github.com/hagezi/dns-blocklists) |
-| Tor exit nodes | by design — every Tor user, legitimate or not | ✗ | [terms](https://metrics.torproject.org/collector.html) |
+| Spamhaus DROP | 几乎没有 | ✓ | [条款](https://www.spamhaus.org/drop/terms/) |
+| DShield top block list | 几乎没有 | ✓ | [条款](https://isc.sans.edu/api/) |
+| blocklist.de (SSH) | 有一些 —— 动态和重复使用的地址，部分云主机；自 2026 年 1 月起没有出现爬虫或监测服务 | ✓ | [条款](https://www.blocklist.de/en/export.html) |
+| blocklist.de (IMAP, POP3) | 有一些 —— 与 SSH 列表相同；只在邮件主机上才值得 | • | [条款](https://www.blocklist.de/en/export.html) |
+| CINS Army | 有一些 —— 大约每十一个地址中就有一个是云地址 | • | [条款](https://cinsscore.com/) |
+| Emerging Threats compromised | 有，且明显 —— 四分之一是 AWS 和 Google Cloud 地址；不适合要从云接收 webhook 或监控数据的主机 | • | [条款](https://rules.emergingthreats.net/open/suricata-7.0.3/LICENSE) |
+| blocklist.de (all) | 有 —— 动态地址、云主机，以及 Googlebot、Bingbot、Applebot、StatusCake 和 Cloudflare | ✗ | [条款](https://www.blocklist.de/en/export.html) |
+| IPsum，出现在 ≥ 3 个列表上 | 有 —— 一个聚合列表，部分来源相当激进，并包含 Tor 出口节点 | ✗ | [条款](https://github.com/stamparm/ipsum) |
+| Hagezi threat intelligence IPs | 有 —— 云主机和 Tor 出口节点 | ✗ | [条款](https://github.com/hagezi/dns-blocklists) |
+| Tor exit nodes | 设计如此 —— 每一个 Tor 用户，无论是否正当 | ✗ | [条款](https://metrics.torproject.org/collector.html) |
 
-### Countries
+### 国家/地区 {#countries}
 
-How to add one: [Block a country]({{ '/docs/features/countries/' | relative_url }}).
+如何添加： [拦截一个国家/地区]({{ '/docs/features/countries/' | relative_url }})。
 
 | | |
 |---|---|
-| Source | [ipverse/country-ip-blocks](https://github.com/ipverse/country-ip-blocks), CC0 1.0, built from the five regional registries' delegation files |
-| Fetched from | `raw.githubusercontent.com`, one file per country, both address families |
-| Refresh | every 24 h; the list is rebuilt daily around 01:25 UTC |
-| Breadth limit | IPv4 down to /4, IPv6 down to /16 (the lists' limit is /8 and /16) |
-| Cap | 30 countries switched on at once |
-| Default | off, each one |
+| 来源 | [ipverse/country-ip-blocks](https://github.com/ipverse/country-ip-blocks)，CC0 1.0，由五个区域注册管理机构的委派文件构建 |
+| 抓取自 | `raw.githubusercontent.com`，每个国家/地区一个文件，两种地址族 |
+| 刷新 | 每 24 小时；列表每天约 01:25 UTC 重建 |
+| 宽度限制 | IPv4 最宽到 /4，IPv6 最宽到 /16（列表本身的限制是 /8 和 /16） |
+| 上限 | 最多同时开启 30 个国家/地区 |
+| 默认 | 每一个都关闭 |
 
-The cap is there because every refresh rewrites the stored copies: 30 countries
-take that file from 0.5 MB to about 4 MB.
+设这个上限是因为每次刷新都会重写已存储的副本：30 个国家/地区会让该文件从 0.5 MB 涨到约 4 MB。

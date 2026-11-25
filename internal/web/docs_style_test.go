@@ -165,21 +165,13 @@ func TestAuditColourTableMatchesTheCode(t *testing.T) {
 		}
 	}
 
-	// And the count in the heading has to match.
-	want := fmt.Sprintf("Only %s entries carry colour", numberWord(len(auditActionTones)))
+	// And the count in the heading has to match. The page is written in Chinese,
+	// so the heading spells the number with digits rather than a word.
+	want := fmt.Sprintf("只有 %d 个条目带颜色", len(auditActionTones))
 	if !strings.Contains(docs, want) {
 		t.Errorf("the heading should read %q — there are %d coloured actions",
 			want, len(auditActionTones))
 	}
-}
-
-// numberWord spells the small numbers the heading uses.
-func numberWord(n int) string {
-	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight"}
-	if n < len(words) {
-		return words[n]
-	}
-	return fmt.Sprint(n)
 }
 
 // The mobile drawer's backdrop (.sidebar-backdrop) and the drawer itself

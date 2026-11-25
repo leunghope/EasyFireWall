@@ -2278,9 +2278,18 @@ async function checkPageHealth(ctx, theme, width) {
   await page.close();
 }
 
-const launch = process.env.CHROME_PATH
-  ? { executablePath: process.env.CHROME_PATH }
-  : {};
+// Every assertion in this file quotes the English copy, and the application
+// negotiates its language from Accept-Language when no cookie is set yet. On a
+// machine whose browser reports zh-CN (or de-DE, or fr-FR) the first screens —
+// the wizard, the sign-in page, the enrolment gate — came back in that language
+// and the English assertions failed on a change that was fine. Pinning the
+// browser's language makes the run mean the same thing everywhere, which is the
+// same reason the pages are checked at fixed widths rather than at whatever the
+// window happened to be.
+const launch = {
+  args: ['--accept-lang=en-US'],
+  ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
+};
 
 // The three widths CLAUDE.md names: a desktop, a narrow window, a phone. Only
 // 1600 was ever driven here, so "both themes, three widths" was a rule the

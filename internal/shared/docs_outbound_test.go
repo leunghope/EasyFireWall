@@ -89,8 +89,12 @@ func TestBothPagesCountTheSameOutboundRequests(t *testing.T) {
 	outbound := map[string]row{
 		"internal/shared/version.go":   {"Update check — api.github.com", "api.github.com"},
 		"internal/shared/telemetry.go": {"Counting installations — telemetry.wdkro.de", "telemetry.wdkro.de"},
-		"internal/web/notify.go":       {"Notifications — an address the operator chooses", "Notifications"},
-		"internal/web/feeds.go":        {"Feeds — each list switched on, at its own address", "Feeds"},
+		// Neither row has a fixed host, so these two tokens are what the pages
+		// call them rather than a destination: "通知" is the section label both
+		// tables use, and the country list's host is the address every feed row
+		// names. A destination token is preferred everywhere it exists.
+		"internal/web/notify.go": {"Notifications — an address the operator chooses", "通知"},
+		"internal/web/feeds.go":  {"Feeds — each list switched on, at its own address", "raw.githubusercontent.com"},
 		"internal/web/countrylookup.go": {"Country lookup — github.com, then release-assets.githubusercontent.com",
 			"release-assets.githubusercontent.com"},
 		"internal/web/acme.go":    certificate,
@@ -161,11 +165,28 @@ func TestBothPagesCountTheSameOutboundRequests(t *testing.T) {
 		}
 	}
 
-	// The count both pages must say, spelled as they spell it.
+	// The count both pages must say, spelled as they spell it. Both published
+	// pages are written in Chinese, where the sentence reads "共六条，这就是完整
+	// 清单。"; web.toml and the schema under docs/schemas/ are still English and
+	// count the same total, so both spellings are accepted.
 	words := map[int]string{1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six"}
-	want := words[len(rows)]
-	if want == "" {
+	numerals := map[int]string{1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八"}
+	want, wantZH := words[len(rows)], numerals[len(rows)]
+	if want == "" || wantZH == "" {
 		t.Fatalf("no word for %d outbound requests — extend the map above", len(rows))
+	}
+
+	// counted reports whether s spells the number of rows, as "Six"/"6" in the
+	// English sources or "六条"/"六项"/"六个" in the Chinese ones.
+	counted := func(s string) bool {
+		s = strings.TrimPrefix(strings.TrimSpace(s), "共")
+		lower := strings.ToLower(s)
+		return strings.HasPrefix(lower, strings.ToLower(want)) ||
+			s == wantZH ||
+			strings.HasPrefix(s, strconv.Itoa(len(rows))) ||
+			strings.HasPrefix(s, wantZH+"条") ||
+			strings.HasPrefix(s, wantZH+"项") ||
+			strings.HasPrefix(s, wantZH+"个")
 	}
 
 	names := make([]string, 0, len(rows))
@@ -176,8 +197,10 @@ func TestBothPagesCountTheSameOutboundRequests(t *testing.T) {
 
 	// The sentences elsewhere that count them too — the shipped web.toml, the
 	// schema an editor shows, the code. web.toml said "four" and the schema
-	// "two" while both pages said five: they were not part of this test.
-	aside := regexp.MustCompile(`(?i)\bof the (\w+) requests easywall\b`)
+	// "two" while both pages said five: they were not part of this test. Both
+	// spellings are matched: the first is the English sources, the second is
+	// the translated pages.
+	aside := regexp.MustCompile(`(?i)\bof the (\w+) requests easywall\b|easywall 发出的(\S+?)个请求`)
 	for _, dir := range []string{"config", "docs/schemas", "docs/_docs", "internal"} {
 		err := filepath.WalkDir(filepath.Join(root, dir), func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || strings.HasSuffix(path, "_test.go") || d.Name() == "changelog.md" {
@@ -188,7 +211,11 @@ func TestBothPagesCountTheSameOutboundRequests(t *testing.T) {
 				return err
 			}
 			for _, m := range aside.FindAllStringSubmatch(string(raw), -1) {
-				if !strings.EqualFold(m[1], want) {
+				got := m[1]
+				if got == "" {
+					got = m[2]
+				}
+				if !counted(got) {
 					rel, _ := filepath.Rel(root, path)
 					t.Errorf("%s says %q; the tree makes %d (%s)", rel, m[0], len(rows), strings.Join(names, ", "))
 				}
@@ -200,20 +227,23 @@ func TestBothPagesCountTheSameOutboundRequests(t *testing.T) {
 		}
 	}
 
-	claim := regexp.MustCompile(`(?m)^([A-Z][a-z]+), and this is the whole list\.$`)
+	// One sentence per page states the total above the table of destinations.
+	// The English sources spell it "<Number>, and this is the whole list."; the
+	// translated pages spell it "共六条，这就是完整清单。".
+	claim := regexp.MustCompile(`(?m)^(?:[A-Z][a-z]+, and this is the whole list\.|共\S+?，这就是完整清单。)$`)
 	for _, page := range []string{"docs/_docs/security.md", "docs/_docs/configuration.md"} {
 		raw, err := os.ReadFile(filepath.Join(root, page))
 		if err != nil {
 			t.Fatalf("read %s: %v", page, err)
 		}
 		body := string(raw)
-		m := claim.FindAllStringSubmatchIndex(body, -1)
+		m := claim.FindAllStringIndex(body, -1)
 		if len(m) != 1 {
-			t.Errorf("%s has %d sentences reading \"<number>, and this is the whole list.\", want 1 — "+
+			t.Errorf("%s has %d sentences stating the total above its table, want 1 — "+
 				"that sentence is what this test compares against the code", page, len(m))
 			continue
 		}
-		if got := body[m[0][2]:m[0][3]]; got != want {
+		if got := body[m[0][0]:m[0][1]]; !counted(got) {
 			t.Errorf("%s says %q outbound requests; the tree makes %d (%s)",
 				page, got, len(rows), strings.Join(names, ", "))
 		}

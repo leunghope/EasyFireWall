@@ -1,62 +1,45 @@
 ---
 layout: default
-title: Configuration
-description: All TOML configuration keys for easywall-core and easywall-web explained.
+title: 配置
+description: easywall-core 与 easywall-web 的全部 TOML 配置键说明。
 ---
 
-# Configuration
+# 配置
 
-Two TOML files in `/etc/easywall/`, one per process, read at startup.
+`/etc/easywall/` 下有两个 TOML 文件，每个进程一个，启动时读取。
 
-A value that cannot be interpreted stops the daemon with a message naming the key —
-an unknown `ipv6.mode`, a missing path. A value that is merely out of range is brought
-into range and **said out loud** in the log. A firewall daemon that refuses to start is
-a worse outcome than one running a documented default. `acceptance.duration` is clamped
-to 10–3600. A rate limit of zero on an enabled module becomes that module's default.
+无法解析的值会让守护进程停止，并在消息中点名对应的键——例如未知的 `ipv6.mode`、缺失的路径。仅仅超出范围的值则会被拉回范围内，并在日志里**明确说出来**。防火墙守护进程拒绝启动，比运行一个有文档说明的默认值更糟。`acceptance.duration` 会被限制在 10–3600。已启用模块上为 0 的速率限制会变成该模块的默认值。
 
-The same value arriving through the interface is refused instead, with the key named.
-Nothing is substituted quietly in either direction — that used to be five rate limits,
-and the file and the running firewall could disagree with nothing to say so.
+同一个值若从界面传入，则会被拒绝，并点名对应的键。两个方向都不会静默替换——过去有五处速率限制如此，文件与运行中的防火墙可能互相矛盾，却没有任何说明。
 
-| | Owner and mode | Holds |
+| | 所有者与权限 | 内容 |
 |---|---|---|
-| `easywall.toml` | `root:root` `0600` | firewall options, acceptance window, IPv6, Docker, routing |
-| `web.toml` | `easywall:easywall` `0600` | bind address, TLS, session secret, credentials |
+| `easywall.toml` | `root:root` `0600` | 防火墙选项、确认窗口、IPv6、Docker、路由 |
+| `web.toml` | `easywall:easywall` `0600` | 监听地址、TLS、会话密钥、凭据 |
 
-The split is the point: the web process rewrites its own file. The wizard and the
-password page write into it. It must not be able to touch the one the root daemon
-reads.
+这种拆分正是要点所在：web 进程改写自己的文件。初始化向导和密码页面会写入该文件。它绝不能碰 root 守护进程读取的那个文件。
 
-The package and the container install both, already filled in — from
-`*.toml.template`. Both are created once and never touched again: easywall edits
-both files itself, and a file a program rewrites must not be managed by the
-package manager. An upgrade replaces the templates and leaves your two files
-alone. Either binary can also write a commented default — it carries one, so this
-works on a host that has nothing but the binary:
+软件包和容器都会安装这两个文件，且已预先填好——来自 `*.toml.template`。两个文件只创建一次，之后不再被触碰：easywall 自己会编辑这两个文件，而程序会改写的文件不能交给包管理器管理。升级只替换模板，你的两个文件保持原样。任一可执行文件也能写出带注释的默认配置——它内置了一份，所以在只装了可执行文件的主机上也能用：
 
 ```bash
 sudo easywall-core --write-config /etc/easywall/easywall.toml
 sudo easywall-web  --write-config /etc/easywall/web.toml
 ```
 
-**It never overwrites.** Both paths hold a working firewall's settings once
-easywall is running, and `web.toml` also holds the session key and the password
-hash. Pointed at a file that exists, the command says so and changes nothing.
+**它从不覆盖。** easywall 运行后，两个路径都保存着正在工作的防火墙设置，`web.toml` 还保存会话密钥和密码哈希。若指向已存在的文件，命令会说明这一点，并且不做任何改动。
 
-## The command line
+## 命令行 {#the-command-line}
 
-Both binaries take three flags; `easywall-web` takes a fourth.
+两个可执行文件都接受三个参数；`easywall-web` 还接受第四个。
 
 | | |
 |---|---|
-| `-config <path>` | which file to read. Defaults to `/etc/easywall/easywall.toml` and `/etc/easywall/web.toml` |
-| `-write-config <path>` | write the commented default to that path, `0600`, and exit. Refuses if the file exists, and does not create the directory |
-| `-version` | print the version and exit — what the binary was actually built as |
-| `-healthcheck` | `easywall-web` only: ask `/healthz` at `bind_addr`, exit 0 on a 200 — the container's [health check]({{ '/docs/features/health/' | relative_url }}) |
+| `-config <path>` | 要读取哪个文件。默认为 `/etc/easywall/easywall.toml` 与 `/etc/easywall/web.toml` |
+| `-write-config <path>` | 把带注释的默认配置写到该路径，权限 `0600`，然后退出。文件已存在则拒绝，且不会创建目录 |
+| `-version` | 打印版本并退出——即该可执行文件实际构建出的版本 |
+| `-healthcheck` | 仅 `easywall-web`：向 `bind_addr` 上的 `/healthz` 发起请求，返回 200 时以退出码 0 结束——即容器的[健康检查]({{ '/docs/features/health/' | relative_url }}) |
 
-`easywall-core` also has five subcommands: `health` and `selftest`
-([health]({{ '/docs/features/health/' | relative_url }})), `status`, `panic` and `resume`
-([recovery]({{ '/docs/features/recovery/' | relative_url }})). `easywall-core -h` lists them.
+`easywall-core` 还有五个子命令：`health` 与 `selftest`（[健康状态]({{ '/docs/features/health/' | relative_url }})）、`status`、`panic` 与 `resume`（[恢复与恐慌模式]({{ '/docs/features/recovery/' | relative_url }})）。`easywall-core -h` 会列出它们。
 
 ```bash
 easywall-core --version     # easywall-core {{ site.version }}
@@ -64,199 +47,134 @@ easywall-core --version     # easywall-core {{ site.version }}
 
 ---
 
-## easywall-core (`/etc/easywall/easywall.toml`)
+## easywall-core（`/etc/easywall/easywall.toml`）
 
-### Top-Level Keys
+### 顶层键
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `socket_path` | string | `/run/easywall/core.sock` | Unix socket path — must be accessible to the `easywall` group |
-| `data_dir` | string | `/var/lib/easywall` | Directory for `rules.json`, the apply state and the panic marker. Root's alone: the web process writes only `web/` inside it |
-| `log_dir` | string | `/var/log/easywall` | Directory for audit log and rule snapshots |
+| `socket_path` | string | `/run/easywall/core.sock` | Unix socket 路径——必须对 `easywall` 组可访问 |
+| `data_dir` | string | `/var/lib/easywall` | `rules.json`、应用状态与恐慌模式标记所在目录。仅归 root 所有：web 进程只写入其中的 `web/` |
+| `log_dir` | string | `/var/log/easywall` | 审计日志与规则快照所在目录 |
 
 ### `[acceptance]`
 
-The two-step activation safety mechanism. When a ruleset is applied, the core waits up to `duration` seconds for an explicit acceptance signal. If no signal arrives, the previous ruleset is automatically restored.
+两步激活的安全机制。规则集被应用后，core 最多等待 `duration` 秒，以收到明确的确认信号。若没有信号到达，先前的规则集会被自动恢复。
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `enabled` | bool | `true` | Two-step activation safety. The installed `easywall.toml` sets `true` |
-| `duration` | int | `120` | Seconds before auto-rollback if not confirmed — 10 to 3600 |
+| `enabled` | bool | `true` | 两步激活的安全机制。安装的 `easywall.toml` 将其设为 `true` |
+| `duration` | int | `120` | 未确认时自动回滚前的秒数——10 至 3600 |
 
-Set `duration` to a value long enough for you to verify connectivity from a second terminal after applying rules.
+把 `duration` 设得足够长，好让你在应用规则后从第二个终端验证连通性。
 
-> **A key the file omits reads as its shipped default**, so a file naming only
-> `duration` still has the window on. `enabled = false` is not clamped or refused. The
-> daemon warns at every start when it is off: *applies take effect immediately and
-> nothing will undo them*.
+> **文件省略的键按其随附默认值读取**，所以只写了 `duration` 的文件仍然开启确认窗口。`enabled = false` 不会被限制，也不会被拒绝。关闭时守护进程每次启动都会警告：*applies take effect immediately and nothing will undo them*。
 
-The range is enforced, not merely suggested. Below ten seconds the window closes before
-the confirmation page can be read, so every apply rolls back and the firewall can no
-longer be changed through the interface. A value outside the range in an existing file
-is brought to the nearest permitted one, with a warning, rather than keeping the daemon
-from starting. That includes `0`, which becomes 10; `enabled = false` is what switches
-the window off. A missing `duration` is 120. A value set through the interface is rejected outright.
+该范围是强制执行的，不只是建议。低于十秒，窗口会在确认页面被读完之前关闭，于是每次应用都会回滚，防火墙再也无法通过界面修改。现有文件中超出范围的值会被带到最近的允许值，并记录警告，而不是让守护进程无法启动。这包括 `0`，它变成 10；关闭窗口靠的是 `enabled = false`。缺失的 `duration` 为 120。通过界面设置的值会直接被拒绝。
 
 ### `[usage]`
 
-How often the per-rule packet counters are read out of the kernel. It is what the
-**Last used** column on the [port pages]({{ '/docs/features/ports/' | relative_url }})
-is built from.
+从内核读取每条规则的数据包计数器的频率。它构成了[端口规则页面]({{ '/docs/features/ports/' | relative_url }})上 **最近使用** 列的数据来源。
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `interval` | int | `300` | Seconds between counter reads — `0` stops the ticker |
+| `interval` | int | `300` | 读取计数器之间的秒数——`0` 会停止定时器 |
 
-`0` stops the **ticker**, not the counting. An apply reads the counters
-immediately before it writes, because writing the rules resets every one of
-them. So **Last used** still advances at every apply, even on a host with the
-ticker switched off. What you lose is the resolution in between: a port used
-an hour after your last apply is dated at your next one.
+`0` 停止的是**定时器**，不是计数。一次应用会在写入之前立即读取计数器，因为写入规则会把每一个计数器清零。所以即使主机上的定时器已关闭，**最近使用** 仍会在每次应用时推进。你失去的是两次应用之间的分辨率：在上次应用一小时后才被使用的端口，会在下一次应用时才被记下时间。
 
 ### `[packet_log]`
 
-Where the packets the [`*_log` switches]({{ '/docs/features/filters/' | relative_url }}#logging)
-log are kept — what the [Blocked page]({{ '/docs/features/blocked-traffic/' | relative_url }})
-reads. Read at start; a `SIGHUP` reports a change here and ignores it.
+[`*_log` 开关]({{ '/docs/features/filters/' | relative_url }}#logging)所记录的数据包保存在哪里——即[已拦截流量页面]({{ '/docs/features/blocked-traffic/' | relative_url }})读取的内容。启动时读取；`SIGHUP` 会报告此处的变更并忽略它。
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `nflog_group` | int | `12227` | The NFLOG group `easywall-core` binds |
-| `entries` | int | `20000` | Packets kept, newest first — `1000` to `200000` |
-| `persist` | bool | `false` | Also write them to `log_dir/packets.log`, so the page survives a restart |
+| `nflog_group` | int | `12227` | `easywall-core` 绑定的 NFLOG 组 |
+| `entries` | int | `20000` | 保留的数据包数量，最新的在前——`1000` 至 `200000` |
+| `persist` | bool | `false` | 同时写入 `log_dir/packets.log`，使页面在重启后仍有数据 |
 
-A group binds once per network namespace (per host, for a host-network
-install). If ulogd2 already holds `12227`, the core logs
-*could not bind its NFLOG group*, falls back to the kernel log as before
-2.21, and the page says the same. Pick a free group.
+一个组在每个网络命名空间中只能绑定一次（若以 host 网络方式安装，则每台主机一次）。如果 ulogd2 已占用 `12227`，core 会记录 *could not bind its NFLOG group*，回退到 2.21 之前那样的内核日志，页面也会给出同样的说明。选一个空闲的组。
 
-`entries` outside its range is brought to the nearest end with a warning.
-`nflog_group` outside `0`–`65535` stops the daemon with the key named.
+`entries` 超出范围时会被带到最近的一端，并记录警告。`nflog_group` 超出 `0`–`65535` 时，守护进程会停止并点名该键。
 
 ### `[ipv6]`
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `mode` | string | `"filter"` | What happens to IPv6: `filter` puts it through every rule, `passthrough` accepts it before any rule, `block` drops it except loopback. `block` also removes IPv6 from the container networks the forward chain is built over — what then reaches a container follows `routing.mode` (drop under `closed`/`networks` unless `routing.networks` names it, passed through under `open`) |
-| `icmp_allow_router_advertisement` | bool | `true` | Allow ICMPv6 types 133 and 134 — required for SLAAC address autoconfiguration |
-| `icmp_allow_neighbor_advertisement` | bool | `true` | Allow ICMPv6 types 135/136 — required for Neighbor Discovery Protocol |
+| `mode` | string | `"filter"` | IPv6 如何处理：`filter` 让它经过每一条规则，`passthrough` 在任何规则之前接受它，`block` 丢弃它（回环除外）。`block` 还会把 IPv6 从容器网络中移除，而转发链正是建立在这些网络之上的——此后到达容器的流量遵循 `routing.mode`（在 `closed`/`networks` 下丢弃，除非 `routing.networks` 列出了它；在 `open` 下透传） |
+| `icmp_allow_router_advertisement` | bool | `true` | 允许 ICMPv6 类型 133 和 134——SLAAC 地址自动配置所需 |
+| `icmp_allow_neighbor_advertisement` | bool | `true` | 允许 ICMPv6 类型 135/136——邻居发现协议所需 |
 
-Both ICMPv6 keys apply only under `mode = "filter"`. Under `passthrough` the traffic
-is already accepted and under `block` already gone.
+两个 ICMPv6 键仅在 `mode = "filter"` 下生效。在 `passthrough` 下流量已被接受，在 `block` 下则已经不存在。
 
-> **`enabled` is obsolete.** It was documented as "off means IPv6 traffic is not
-> filtered at all," and did the opposite. The table is `inet`, so every rule and the
-> drop policy still applied to IPv6, and only the ICMPv6 exemptions were removed —
-> IPv6 came out filtered *and* non-functional. A config still carrying the key loads,
-> and both old values become `mode = "filter"`.
+> **`enabled` 已废弃。** 它曾被记录为「关闭意味着完全不过滤 IPv6 流量」，实际效果却相反。表是 `inet`，因此每一条规则和丢弃策略仍然作用于 IPv6，被移除的只有 ICMPv6 豁免——结果是 IPv6 既被过滤，*又*无法工作。仍带有该键的配置可以加载，两个旧取值都会变成 `mode = "filter"`。
 
-Turning either ICMPv6 key off breaks IPv6 on most networks — SLAAC and neighbour
-discovery are how an address is obtained and kept reachable. They exist for hosts
-with static addressing that genuinely need neither.
+关闭任一 ICMPv6 键都会在多数网络上破坏 IPv6——SLAAC 与邻居发现正是地址得以获取并保持可达的方式。它们是为那些确实两者都不需要的静态地址主机而存在的。
 
 ### `[docker]`
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `enabled` | bool | `true` | Auto-detect Docker bridge interfaces and allowlist them |
-| `allow_bridge_networks` | bool | `true` | Allowlist auto-detected bridge network CIDRs |
-| `custom_networks` | list | `[]` | Additional CIDRs to allowlist unconditionally (processed when `enabled = true`) |
-| `published_ports` | string | `"open"` | `open` or `filtered`. Under `filtered`, only a port rule with scope `forwarded` lets anything reach a published container port — covers IPv6 container networks too since 2.24 |
+| `enabled` | bool | `true` | 自动检测 Docker 网桥接口并将其加入允许列表 |
+| `allow_bridge_networks` | bool | `true` | 将自动检测到的网桥网络 CIDR 加入允许列表 |
+| `custom_networks` | list | `[]` | 无条件加入允许列表的额外 CIDR（在 `enabled = true` 时处理） |
+| `published_ports` | string | `"open"` | `open` 或 `filtered`。在 `filtered` 下，只有作用域为 `forwarded` 的端口规则才让任何内容到达已发布的容器端口——自 2.24 起也覆盖 IPv6 容器网络 |
 
-> **`enabled` ships `true` since 2.22.** A host with no `docker*`/`br-*`
-> interface gets no rule change either way. One that has such an interface
-> and shipped `false` lost every container's network at the first apply.
-> The acceptance window is blind to that: it proves the operator's own
-> connection on the `input` chain, and container traffic crosses the
-> `forward` chain instead. Existing files keep whatever they already say;
-> only a fresh install or `--write-config` sees the new default. A
-> non-Docker `br-*` interface — OpenWrt's `br-lan` is one, an OpenStack
-> `br-ex` another — is trusted too. Its global or unique-local IPv6 prefixes
-> are trusted the same way since 2.24; set `enabled = false` on a host like
-> that.
+> **自 2.22 起 `enabled` 随附为 `true`。** 没有 `docker*`/`br-*` 接口的主机在两种取值下都不会有任何规则变化。而拥有此类接口、又随附 `false` 的主机，会在第一次应用时失去每个容器的网络。确认窗口对此视而不见：它验证的是操作者自己在 `input` 链上的连接，而容器流量经过的是 `forward` 链。现有文件保留它们原本的取值；只有全新安装或 `--write-config` 才会看到新的默认值。
+>
+> 非 Docker 的 `br-*` 接口——OpenWrt 的 `br-lan` 是一个，OpenStack 的 `br-ex` 是另一个——同样会被信任。自 2.24 起，其全局或唯一本地 IPv6 前缀也以同样方式被信任；在这样的主机上应设置 `enabled = false`。
 
-> **`published_ports` has no control in the interface, deliberately.** One press
-> could take every container on this host off the network. The acceptance window
-> cannot catch that: it proves your own connection, and yours arrives on the
-> `input` chain. Edit it here, apply once, and read
-> [Docker Coexistence]({{ '/docs/features/docker/' | relative_url }}) first.
-> `filtered` is refused at startup and on `SIGHUP` when `enabled = false`, and
-> so is any value that is neither `open` nor `filtered`.
+> **`published_ports` 刻意不在界面中提供控件。** 一次点击就可能让本机上的每个容器脱离网络。确认窗口抓不住这种情况：它验证的是你自己的连接，而你的连接到达的是 `input` 链。在这里编辑它，应用一次，并先阅读 [Docker 共存]({{ '/docs/features/docker/' | relative_url }})。当 `enabled = false` 时，`filtered` 会在启动时和 `SIGHUP` 时被拒绝；任何既不是 `open` 也不是 `filtered` 的值同样会被拒绝。
 
-See [Docker Coexistence]({{ '/docs/features/docker/' | relative_url }}) for the full setup guide.
+完整设置指南见 [Docker 共存]({{ '/docs/features/docker/' | relative_url }})。
 
-Both this list and `routing.networks` below hold **CIDR networks** — `192.168.1.0/24`,
-not `192.168.1.5`. A blank line or a line beginning with `#` is a comment, as in the
-address list editors, and is skipped. Anything else stops the daemon with the entry
-named, at startup and on `SIGHUP`.
+这个列表与下面的 `routing.networks` 都存放 **CIDR 网络**——`192.168.1.0/24`，而不是 `192.168.1.5`。空行或以 `#` 开头的行是注释，与地址列表编辑器中一样，会被跳过。其他任何内容都会让守护进程停止并点名该条目，在启动时和 `SIGHUP` 时都是如此。
 
-> **Nothing checked these two lists when they arrived in the file.** Only the
-> Network page checked, and only on the way in — so an entry edited in by hand
-> reached the kernel as no rule at all. With `routing.mode = "networks"` and
-> `networks = ["10.8.0.0/24", "10.9.0.0-24"]` the daemon started with no warning.
-> The `forward` chain came up holding the accept for the first network and
-> none for the second, which the drop policy then destroyed. The page had the
-> opposite failure: it validated with the address-list rules, which accept a bare
-> address. So `192.168.1.5` passed there, was refused by the core, and was
-> reported as *Failed to save changes. Check core connection.*
+> **这两个列表写入文件时，没有任何东西检查它们。** 只有网络页面会检查，而且只在输入时检查——于是手工编辑进去的条目到达内核时根本不成其为规则。当 `routing.mode = "networks"` 且 `networks = ["10.8.0.0/24", "10.9.0.0-24"]` 时，守护进程启动时毫无警告。`forward` 链建立后，第一个网络有接受规则，第二个没有，其流量随后被丢弃策略摧毁。页面则出现了相反的失败：它用地址列表的规则校验，而那种规则接受裸地址。于是 `192.168.1.5` 在那里通过，却被 core 拒绝，并被报告为 *保存更改失败。请检查 core 连接。*
 
 ### `[routing]`
 
-Traffic this host passes on rather than receives — between two interfaces, out of a
-container, into a published container port.
+本机转发而非接收的流量——接口之间、从容器出去、进入已发布的容器端口。
 
-| Key | Type | Default | Description |
+| 键 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `mode` | string | `"closed"` | `closed`, `networks` or `open` — see below |
-| `networks` | list | `[]` | CIDRs that may be routed, in either direction. Read only under `mode = "networks"` |
+| `mode` | string | `"closed"` | `closed`、`networks` 或 `open`——见下文 |
+| `networks` | list | `[]` | 允许被路由的 CIDR，双向皆可。仅在 `mode = "networks"` 下读取 |
 
-| `mode` | What crosses the `forward` chain |
+| `mode` | 什么会经过 `forward` 链 |
 |---|---|
-| `closed` | Nothing, beyond what `[docker]` allows. Correct for a plain server |
-| `networks` | Also anything with a source *or* a destination in `networks` |
-| `open` | Everything. easywall filters only what arrives for this host |
+| `closed` | 除 `[docker]` 允许的内容外，什么都不通过。适用于普通服务器 |
+| `networks` | 此外，源*或*目标位于 `networks` 中的任何内容 |
+| `open` | 所有内容。easywall 只过滤到达本主机的内容 |
 
-> **A closed `forward` chain is not the same as an unfiltered one.** A base chain
-> whose rules give no verdict falls through to its policy, so an empty chain with
-> `policy drop` destroys every routed packet. That includes packets another table's
-> forward chain has already accepted. Until 2.5.0 that was the only behaviour and
-> nothing said so, which meant every Docker container lost its network the moment
-> easywall applied. Docker's networks now cross regardless of `mode`; anything else
-> that routes needs this key.
+> **关闭的 `forward` 链与未过滤的链并不相同。** 规则不给出裁决的基础链会落到它的策略上，因此带有 `policy drop` 的空链会摧毁每一个被路由的数据包。这包括另一个表的转发链已经接受的数据包。直到 2.5.0，这是唯一的行为，而且没有任何说明，这意味着 easywall 一应用，每个 Docker 容器就会失去网络。现在无论 `mode` 如何，Docker 的网络都会通过；其他需要路由的内容则依赖这个键。
 
-### `[firewall]` — Protection Modules
+### `[firewall]` —— 防护模块
 
-One row per module: the switch that turns it on, what it may be tuned with, and
-its own logging switch. Every threshold is **per source address**. All booleans
-default to what the "on" column says; the numbers are the defaults shown.
+每个模块一行：开启它的开关、可用来调优它的键，以及它自己的日志开关。每个阈值都是**按源地址**计。所有布尔值的默认值如「开关——默认」列所示；数字则是表中显示的默认值。
 
-What each module actually drops is on
-[Firewall Filters]({{ '/docs/features/filters/' | relative_url }}); this is the key
-reference.
+每个模块实际丢弃什么，见[防火墙过滤器]({{ '/docs/features/filters/' | relative_url }})；这里只是键的参考。
 
-| Module | Switch — default | Tuning | Logging |
+| 模块 | 开关——默认 | 调优 | 日志 |
 |---|---|---|---|
-| SSH brute-force | `ssh_brute_force` — **on** | `ssh_brute_force_connection_limit` `5`/min | `ssh_brute_force_log`, `ssh_brute_force_log_limit` `60`/min |
-| Answer pings | `icmp_allow_echo_request` — **on** | — | — |
-| ICMP flood | `icmp_flood` — **on** | `icmp_flood_connection_limit` `10`/s | `icmp_flood_log`, `icmp_flood_log_limit` `60`/min |
-| SYN flood | `syn_flood` — **on** | `syn_flood_limit` `100`/s | `syn_flood_log` |
-| Port scan | `port_scan` — **on** | — | `port_scan_log` |
-| Invalid packets | `drop_invalid_packets` — **on** | — | `drop_invalid_packets_log` |
-| Fragments (IPv4) | `drop_fragments` — off | — | `drop_fragments_log` |
-| Bogon filter (IPv4) | `bogon_filter` — off | — | `bogon_filter_log` |
-| Connection limit | `connection_limit_per_ip` — off | `connection_limit_max` `100` | — |
-| TCP RST flood | `tcp_rst_flood` — off | `tcp_rst_flood_limit` `100`/s | `tcp_rst_flood_log` |
-| Broadcast | `drop_broadcast` — off | — | — |
-| Multicast | `drop_multicast` — off | — | — |
-| Anycast | `drop_anycast` — off | — | — |
+| SSH 暴力破解 | `ssh_brute_force` —— **开启** | `ssh_brute_force_connection_limit` `5`/分钟 | `ssh_brute_force_log`、`ssh_brute_force_log_limit` `60`/分钟 |
+| 响应 ping | `icmp_allow_echo_request` —— **开启** | —— | —— |
+| ICMP 洪泛 | `icmp_flood` —— **开启** | `icmp_flood_connection_limit` `10`/秒 | `icmp_flood_log`、`icmp_flood_log_limit` `60`/分钟 |
+| SYN 洪泛 | `syn_flood` —— **开启** | `syn_flood_limit` `100`/秒 | `syn_flood_log` |
+| 端口扫描 | `port_scan` —— **开启** | —— | `port_scan_log` |
+| 无效数据包 | `drop_invalid_packets` —— **开启** | —— | `drop_invalid_packets_log` |
+| 分片（IPv4） | `drop_fragments` —— 关闭 | —— | `drop_fragments_log` |
+| 无效地址过滤（IPv4） | `bogon_filter` —— 关闭 | —— | `bogon_filter_log` |
+| 连接数限制 | `connection_limit_per_ip` —— 关闭 | `connection_limit_max` `100` | —— |
+| TCP RST 洪泛 | `tcp_rst_flood` —— 关闭 | `tcp_rst_flood_limit` `100`/秒 | `tcp_rst_flood_log` |
+| 广播 | `drop_broadcast` —— 关闭 | —— | —— |
+| 组播 | `drop_multicast` —— 关闭 | —— | —— |
+| 任播 | `drop_anycast` —— 关闭 | —— | —— |
 
-A file without `icmp_allow_echo_request` — every `easywall.toml` from before 2.25 — reads it as on.
+不含 `icmp_allow_echo_request` 的文件——2.25 之前的每一个 `easywall.toml`——会将其读作开启。
 
-Every number above has a permitted range, and it is the daemon that holds it.
-The `max` on the options page and the `maximum` in the JSON Schema are hints to a
-browser and an editor. Neither reaches a `curl` or a hand-edited file:
+上面的每个数字都有允许范围，而把守范围的是守护进程。选项页面上的 `max` 和 JSON Schema 中的 `maximum` 只是给浏览器和编辑器的提示。两者都管不到 `curl` 或手工编辑的文件：
 
-| Key | Range | Default |
+| 键 | 范围 | 默认值 |
 |---|---|---|
 | `ssh_brute_force_connection_limit` | 1–100 | 5 |
 | `ssh_brute_force_log_limit` | 1–10000 | 60 |
@@ -269,208 +187,150 @@ browser and an editor. Neither reaches a `curl` or a hand-edited file:
 | `log_blocklist_connections_limit` | 1–10000 | 60 |
 | `log_feed_connections_limit` | 1–10000 | 60 |
 
-Out of range in the file is clamped and logged; out of range from the interface is
-refused with the key named — the same split as `acceptance.duration`.
+文件中超出范围的值会被限制并记录日志；从界面传入的超出范围的值会被拒绝并点名该键——与 `acceptance.duration` 相同的分流方式。
 
-> **There was no upper bound at all until now, and these numbers reach 32-bit
-> fields.** So too large did not fail, it wrapped. Measured against a kernel:
-> `connection_limit_max = 5000000000` arrived as `ct count over 705032704`, and
-> `4294967296` arrived as `ct count over 0` — a rule matching every connection
-> from every source and dropping it. One number, entered on a page whose product
-> promises it cannot lock you out, with nothing logged.
+> **直到现在都没有任何上限，而这些数字会进入 32 位字段。** 所以过大的值不会失败，而是回绕。对着内核实测：`connection_limit_max = 5000000000` 到达时变成 `ct count over 705032704`，`4294967296` 到达时变成 `ct count over 0`——一条匹配来自每个源的每个连接并丢弃它的规则。一个数字，在宣称不会把你锁在门外的产品的页面上输入，却没有任何日志。
 
-Three logging switches belong to no module and are set here as well:
+还有三个日志开关不属于任何模块，也在这里设置：
 
-| | Logs | Rate |
+| | 记录什么 | 速率 |
 |---|---|---|
-| `log_blocked_connections` | everything the final policy drops | `log_blocked_connections_limit` `60`/min |
-| `log_blocklist_connections` | blocklist hits, before the drop | `log_blocklist_connections_limit` `60`/min |
-| `log_feed_connections` | feed hits, before the drop | `log_feed_connections_limit` `60`/min per feed and address family |
+| `log_blocked_connections` | 最终策略丢弃的一切 | `log_blocked_connections_limit` `60`/分钟 |
+| `log_blocklist_connections` | 拦截列表命中，在丢弃之前 | `log_blocklist_connections_limit` `60`/分钟 |
+| `log_feed_connections` | 列表源命中，在丢弃之前 | `log_feed_connections_limit` `60`/分钟，每个列表源和地址族 |
 
 ---
 
-## easywall-web (`/etc/easywall/web.toml`)
+## easywall-web（`/etc/easywall/web.toml`）
 
-### Top-Level Keys
+### 顶层键
 
-| Key | Type | Description |
+| 键 | 类型 | 说明 |
 |---|---|---|
-| `bind_addr` | string | Listen address and port — e.g. `"0.0.0.0:12227"` or `"127.0.0.1:12227"` |
-| `socket_path` | string | Path to the core Unix socket — must match `easywall.toml` |
-| `ssl_dir` | string | Directory where the auto-generated TLS cert/key are stored |
-| `data_dir` | string | The data directory, `/var/lib/easywall` by default. This process keeps its state in `web/` inside it: passkeys, the TOTP replay guard, the version cache, the installation identifier, the country table |
-| `language` | string | Fallback UI locale — any code `locales/` holds a catalogue for; `en`, `de` and `fr` ship. Only used when the browser asks for a language easywall does not have and no choice has been made in the interface |
-| `session_key` | string | Hex secret that signs the session cookie — `openssl rand -hex 32`, which is 64 characters. Optional: one is generated on first start and written back here if the key is missing, shorter than 32 characters, or still the shipped placeholder |
-| `username` | string | Login username — set via the first-run wizard |
-| `password` | string | Argon2id hash — set via the first-run wizard, do not edit by hand |
-| `totp_secret` | string | Base32 shared secret for the second factor, written by the interface — empty means none is enrolled. Clear this, `recovery_codes` and `<data_dir>/web/passkeys.json`, then restart, for password-only sign-in |
-| `recovery_codes` | array of strings | Argon2id hashes of the eight one-time recovery codes — never the codes themselves, which are shown once. One entry is removed each time a code is used |
-| `update_check` | bool | Ask github.com once a day whether a newer release exists — `true` by default. One of six possible outbound requests, and one of the two on by default; see below |
-| `telemetry` | bool | Whether this installation may be counted — off unless switched on, and asked during the first run. See below |
-| `notify_kind` | string | Notification transport — `"webhook"`, `"ntfy"`, or `""` for off, which is the default. See [Every request that leaves the host](#every-request-that-leaves-the-host) |
-| `notify_url` | string | Where the notification is posted. A credential: an ntfy topic is readable by anyone who knows it. Redirects are refused |
-| `notify_on_rolled_back` | bool | Notify when an apply was not confirmed and undid itself — `false` by default |
-| `notify_on_accepted` | bool | Notify when an apply was confirmed — `false` by default |
-| `notify_on_panic` | bool | Notify when panic mode engaged or ended — `false` by default |
-| `notify_on_failed_logins` | bool | Notify on repeated failed sign-ins from one address — `false` by default |
-| `country_lookup` | bool | Name, on **Blocked traffic**, the country each refused source is registered to — `true` by default. On, ipverse's list is downloaded daily; `false` makes no request. See [Every request that leaves the host](#every-request-that-leaves-the-host) |
-| `demo_mode` | bool | Run against an in-memory mock instead of the core. For the public demo only — never on a host you are protecting |
-| `trusted_proxies` | array of strings | Addresses and networks whose `X-Forwarded-For` header is believed. Empty by default, which means the TCP peer is authoritative. See [Behind a reverse proxy](#behind-a-reverse-proxy) for what listing one costs |
-| `health_allow` | array of strings | Addresses and networks that may read `/healthz`. Loopback by default. See [Who may read /healthz](#who-may-read-healthz) |
+| `bind_addr` | string | 监听地址与端口——例如 `"0.0.0.0:12227"` 或 `"127.0.0.1:12227"` |
+| `socket_path` | string | core Unix socket 的路径——必须与 `easywall.toml` 一致 |
+| `ssl_dir` | string | 自动生成的 TLS 证书与私钥存放目录 |
+| `data_dir` | string | 数据目录，默认 `/var/lib/easywall`。本进程把状态保存在其中的 `web/`：通行密钥、TOTP 重放防护、版本缓存、安装标识、国家/地区表 |
+| `language` | string | 备用界面语言——任何 `locales/` 中存有语言目录的语言代码；随附 `en`、`de`、`fr`、`zh`，即 English, Deutsch, Français, 简体中文。仅当浏览器请求 easywall 不支持的语言、且界面中尚未做出选择时使用 |
+| `session_key` | string | 用于签名会话 cookie 的十六进制密钥——`openssl rand -hex 32`，即 64 个字符。可选：若密钥缺失、短于 32 个字符，或仍是随附的占位值，首次启动时会生成一个并写回这里 |
+| `username` | string | 登录用户名——通过初始化向导设置 |
+| `password` | string | Argon2id 哈希——通过初始化向导设置，不要手工编辑 |
+| `totp_secret` | string | 第二因子的 Base32 共享密钥，由界面写入——为空表示未登记任何第二因子。要实现仅密码登录，清空此项、`recovery_codes` 和 `<data_dir>/web/passkeys.json`，然后重启 |
+| `recovery_codes` | array of strings | 八个一次性恢复码的 Argon2id 哈希——绝不是恢复码本身，恢复码只显示一次。每使用一个恢复码，就删除一个条目 |
+| `update_check` | bool | 每天向 github.com 询问一次是否有更新的发布版本——默认 `true`。六种可能的外发请求之一，也是默认开启的两种之一；见下文 |
+| `telemetry` | bool | 遥测：本次安装是否可以被计入统计——除非开启，否则关闭；首次运行时会询问。见下文 |
+| `notify_kind` | string | 通知传输方式——`"webhook"`、`"ntfy"`，或 `""` 表示关闭，即默认值。见[每一次离开主机的请求](#every-request-that-leaves-the-host) |
+| `notify_url` | string | 通知发布到哪里。这是一份凭据：知道 ntfy 主题的人都能读取它。会拒绝重定向 |
+| `notify_on_rolled_back` | bool | 一次应用未被确认、自行撤销时通知——默认 `false` |
+| `notify_on_accepted` | bool | 一次应用被确认时通知——默认 `false` |
+| `notify_on_panic` | bool | 恐慌模式启用或结束时通知——默认 `false` |
+| `notify_on_failed_logins` | bool | 同一地址反复登录失败时通知——默认 `false` |
+| `country_lookup` | bool | 在**被拦截的流量**页面上标出每个被拒绝来源登记在哪个国家/地区——默认 `true`。开启时每天下载 ipverse 的列表；设为 `false` 则不发请求。见[每一次离开主机的请求](#every-request-that-leaves-the-host) |
+| `demo_mode` | bool | 针对内存中的模拟对象运行，而不是 core。仅用于公开演示——绝不要用在你正在保护的主机上 |
+| `trusted_proxies` | array of strings | 其 `X-Forwarded-For` 头会被采信的地址与网络。默认空，表示以 TCP 对端为准。列出条目要付出什么代价，见[位于反向代理之后](#behind-a-reverse-proxy) |
+| `health_allow` | array of strings | 可以读取 `/healthz` 的地址与网络。默认仅回环。见[谁可以读取 /healthz](#who-may-read-healthz) |
 
-### Who may read `/healthz`
+### 谁可以读取 `/healthz` {#who-may-read-healthz}
 
 ```toml
 health_allow = ["127.0.0.1/8", "::1/128", "10.20.0.0/24"]
 ```
 
-`/healthz` is the one route that answers without a session, because the
-orchestrator asking whether easywall-web is alive does not hold one. It returns
-`ok`, `degraded` or `fail` as JSON, and nothing about your rules.
+`/healthz` 是唯一无需会话即可应答的路由，因为询问 easywall-web 是否活着的编排器并不持有会话。它以 JSON 返回 `ok`、`degraded` 或 `fail`，不涉及你的任何规则。
 
-| Answer | HTTP | Meaning |
+| 应答 | HTTP | 含义 |
 |---|---|---|
-| `ok` | 200 | Filtering, and the self-test agrees |
-| `degraded` | 200 | Still filtering, with something to look at |
-| `fail` | 503 | Not filtering, or the core cannot be reached |
+| `ok` | 200 | 正在过滤，且自检结果一致 |
+| `degraded` | 200 | 仍在过滤，但有需要查看的地方 |
+| `fail` | 503 | 未在过滤，或无法联系到 core |
 
-`degraded` is deliberately 200: a container restarted for it would be a working
-firewall dropping every established connection through it. Alert on the `state`
-in the body instead.
+`degraded` 刻意返回 200：若因为它重启容器，原本正常工作的防火墙会丢弃穿过它的每一条已建立连接。应改为对响应体中的 `state` 告警。
 
-Loopback only unless you widen it. The list is matched against the TCP peer and
-never against `X-Forwarded-For`, so a proxy in front of easywall cannot pass a
-monitoring host through — list the proxy. An empty list turns the endpoint off;
-leaving the key out means the loopback default, so an upgrade keeps working.
+除非你放宽，否则仅限回环。列表匹配的是 TCP 对端，绝不匹配 `X-Forwarded-For`，所以 easywall 前面的代理无法把监控主机带进来——要把代理列进去。空列表会关闭该端点；省略该键则意味着回环默认值，因此升级后仍可继续工作。
 
-### Behind a reverse proxy
+### 位于反向代理之后 {#behind-a-reverse-proxy}
 
 ```toml
 trusted_proxies = ["127.0.0.1", "10.1.0.5"]
 ```
 
-Each entry is an address or a CIDR network whose `X-Forwarded-For` easywall
-believes. Empty by default, which means the TCP peer is authoritative.
+每个条目都是一个地址或 CIDR 网络，easywall 采信其 `X-Forwarded-For`。默认空，表示以 TCP 对端为准。
 
-**Being on this list is total trust in that peer.** List the proxies
-themselves, never the network they live in: every host in `10.0.0.0/8` can then
-choose the address easywall records, decides lockouts on, and rate limits.
+**列入此列表就是对那个对端的完全信任。** 列出代理本身，绝不要列出它们所在的网络：否则 `10.0.0.0/8` 中的每台主机都能自选 easywall 记录、据以判定锁定并施加速率限制的地址。
 
-The whole task — nginx in front, the value to use, the Docker case, and how to
-check it took — is [Behind a reverse proxy]({{ '/docs/installation/reverse-proxy/' | relative_url }}).
+整套做法——在前面放 nginx、该用哪个值、Docker 的情形，以及如何确认它已生效——见[位于反向代理之后]({{ '/docs/installation/reverse-proxy/' | relative_url }})。
 
-**If a listed proxy sends no `X-Forwarded-For`,** the request still resolves —
-to the proxy's own address. That's marked `via-proxy` in the audit log and reported
-as *cannot tell* on the apply screen. That marker is the symptom of the release's
-most likely misconfiguration: a proxy added to `trusted_proxies` without a
-matching `proxy_set_header X-Forwarded-For` in the proxy's own config. Every
-client behind it then shares that one address's rate-limit bucket, same as
-before the list existed — set the header and it goes away.
+**如果列出的代理不发送 `X-Forwarded-For`，**请求仍然会被解析——解析为代理自己的地址。审计日志中会标记为 `via-proxy`，应用页面则会报告为 *cannot tell*。这个标记正是该版本最可能出现的配置错误的症状：代理被加入 `trusted_proxies`，但代理自身的配置里没有对应的 `proxy_set_header X-Forwarded-For`。此后它背后每个客户端都共享那一个地址的速率限制桶，与列表存在之前一样——设置该头，问题就会消失。
 
-### How the interface picks a language
+### 界面如何选择语言
 
-Highest priority first:
+优先级从高到低：
 
-1. **An explicit choice in the interface.** The switch in the sidebar footer — and
-   on the login page, so an operator who cannot read it can still get in — stores
-   `easywall_lang` for a year. This outranks everything below: the browser header
-   describes the machine, and this describes the person using it.
-2. **The browser's `Accept-Language` header.**
-3. **`language` in the config**, the setting above.
-4. **English.**
+1. **界面中的明确选择。** 侧边栏页脚的切换器——登录页上也有，这样读不懂当前语言的运维人员仍能登录——会把 `easywall_lang` 保存一年。它的优先级高于下面所有项：浏览器头描述的是机器，而它描述的是使用机器的人。
+2. **浏览器的 `Accept-Language` 头。**
+3. **配置中的 `language`**，即上面的设置。
+4. **English**。
 
-The languages on offer are whatever `locales/*.json` contains, and each file names
-itself through its own `language_name` key. So `Deutsch` reads as `Deutsch` and
-`Français` as `Français`, whatever language the interface is currently in. A
-language nobody has reviewed yet says so in the switch, and a coverage report
-says how much of it is there. Adding a locale file is all it takes for it to
-appear; see
-[Adding a language]({{ '/docs/contributing/' | relative_url }}#adding-a-language).
+界面提供哪些语言，取决于 `locales/*.json` 里有什么；每个文件通过自己的 `language_name` 键声明自身的名称。因此 `Deutsch` 读作 `Deutsch`，`Français` 读作 `Français`，无论界面当前使用哪种语言。尚未有人审校的语言会在切换器中注明这一点，覆盖率报告则会说明它已有多少内容。要让它出现，只需添加一个语言区域文件；见[添加一种语言]({{ '/docs/contributing/' | relative_url }}#adding-a-language)。
 
 ```bash
 openssl rand -hex 32     # session_key
 ```
 
-**Keep `session_key` private.** Anyone holding it can forge a valid session cookie —
-no password required. easywall generates one on first start if the key is missing, too
-short, or still the placeholder the sample config ships with, and writes it back to
-`web.toml`.
+**`session_key` 必须保密。** 持有它的人可以伪造有效的会话 cookie——无需密码。若密钥缺失、过短，或仍是示例配置随附的占位值，easywall 会在首次启动时生成一个，并写回 `web.toml`。
 
-> **There is no `csrf_key`.** CSRF protection is Go 1.25's
-> `net/http.CrossOriginProtection`, which checks `Origin` and `Sec-Fetch-Site` rather
-> than issuing tokens. A `csrf_key` left over from an older config is read by nothing.
+> **不存在 `csrf_key`。** CSRF 防护由 Go 1.25 的 `net/http.CrossOriginProtection` 提供，它检查 `Origin` 和 `Sec-Fetch-Site`，而不是签发令牌。旧配置遗留下来的 `csrf_key` 不会被任何东西读取。
 
 ### `[tls]`
 
-Leave both keys empty to use an auto-generated self-signed certificate in `ssl_dir`.
+两个键都留空，就会使用 `ssl_dir` 中自动生成的自签名证书。
 
-| Key | Description |
+| 键 | 说明 |
 |---|---|
-| `cert` | Absolute path to a custom TLS certificate PEM file (e.g. Let's Encrypt fullchain) |
-| `key` | Absolute path to the matching private key PEM file |
-| `hostname` | The name this installation is reached by. One field, two consumers: the domain ACME issues for, and the WebAuthn Relying Party ID for passkeys |
-| `acme` | Fetch and renew a certificate automatically via ACME (Let's Encrypt by default). Requires `hostname` and `acme_agree_tos`; mutually exclusive with `cert`/`key` |
-| `acme_email` | Optional contact address the certificate authority sends expiry warnings to |
-| `acme_agree_tos` | Your agreement to the certificate authority's subscriber agreement. Has **no default** — easywall never agrees to a third party's terms on your behalf, so `acme = true` without this set is refused at startup |
-| `acme_directory` | ACME directory URL override. Empty is Let's Encrypt production; point it at a staging endpoint while getting DNS and port 80 right |
+| `cert` | 自定义 TLS 证书 PEM 文件的绝对路径（例如 Let's Encrypt fullchain） |
+| `key` | 匹配的私钥 PEM 文件的绝对路径 |
+| `hostname` | 访问本次安装所用的名称。一个字段，两个用途：ACME 签发证书所用的域名，以及通行密钥的 WebAuthn Relying Party ID |
+| `acme` | 通过 ACME 自动获取并续期证书（默认为 Let's Encrypt）。需要 `hostname` 与 `acme_agree_tos`；与 `cert`/`key` 互斥 |
+| `acme_email` | 可选的联络地址，证书颁发机构会向它发送到期警告 |
+| `acme_agree_tos` | 你对证书颁发机构用户协议的同意。**没有默认值**——easywall 绝不会替你同意第三方的条款，因此未设置此项时 `acme = true` 会在启动时被拒绝 |
+| `acme_directory` | ACME 目录 URL 覆盖项。留空即 Let's Encrypt 生产环境；在把 DNS 和 80 端口弄对期间，可指向预发布端点 |
 
-`acme = true` also opens a fixed HTTP-01 listener on port 80. See
-[Security → Transport]({{ '/docs/security/' | relative_url }}#transport) for what
-has to be true before it can answer — including the one thing easywall will not
-do for you.
+`acme = true` 还会在 80 端口上开启一个固定的 HTTP-01 监听器。关于它要能应答必须满足哪些前提——包括 easywall 不会替你做的那一件事——见[安全 → 传输]({{ '/docs/security/' | relative_url }}#transport)。
 
-The auto-generated certificate is valid for a year and is replaced once it comes within
-30 days of expiry. That's checked at startup and twice a day while the service runs, so a
-server that stays up past its own certificate keeps working.
+自动生成的证书有效期为一年，一旦进入到期前 30 天内就会被替换。检查发生在启动时，以及服务运行期间每天两次，因此一台运行时间超过自身证书有效期的服务器仍能继续工作。
 
-A custom certificate is **never** overwritten. It is re-read when the file changes, so
-an ACME client renewing it in place takes effect on the next connection without a
-restart.
+自定义证书**绝不**被覆盖。文件变化时它会重新读取，因此在原地续期的 ACME 客户端无需重启，会在下一次连接时生效。
 
-Set both `cert` and `key` or neither. Setting one alone is refused at startup: easywall
-would otherwise pair your file with the other half of its own generated pair. TLS then
-fails with a key-mismatch error naming a certificate you never configured.
+`cert` 与 `key` 要么都设置，要么都不设置。只设置其一会在启动时被拒绝：否则 easywall 会把你的文件与它自己生成的那对中的另一半配对。TLS 随后会因密钥不匹配而失败，错误里点名的证书你从未配置过。
 
-## Every request that leaves the host
+## 每一次离开主机的请求 {#every-request-that-leaves-the-host}
 
-Six, and this is the whole list.
+共六项，这就是完整清单。
 
-| | Update check | Counting installations | Notifications | Feeds | Country lookup | A certificate |
+| | 更新检查 | 安装计数 | 通知 | 列表源 | 国家/地区查询 | 证书 |
 |---|---|---|---|---|---|---|
-| Key | `update_check` | `telemetry` | `notify_kind` | none — **Blocklist** in the interface | `country_lookup` | `tls.acme` |
-| Default | **on** | **off** until you switch it on | **off** until you switch it on | **off**, each one | **on** | **off** until you switch it on |
-| Destination | `api.github.com` | `telemetry.wdkro.de` | `notify_url` — yours, not ours | each list's own address, a country's on `raw.githubusercontent.com`; an own feed's is yours | `github.com`, redirected to `release-assets.githubusercontent.com` | `tls.acme_directory`, Let's Encrypt if unset |
-| How often | once a day | once a day | when something happens | on the list's schedule, hourly to daily | once a day | on first need, then before expiry |
-| Carries | nothing about you — a plain GET for the newest release | a random identifier and the version, in full below | what happened to your firewall | a GET; an own feed's user and password to its own URL | a GET | `tls.hostname`, an account key made here, and `tls.acme_email` if set |
-| Switched off by | `update_check = false` | `telemetry = false`, or **System** in the interface | `notify_kind = ""`, or **Notifications** in the interface | the feed's switch | `country_lookup = false` | `acme = false` — easywall then issues its own certificate |
+| 键 | `update_check` | `telemetry` | `notify_kind` | 无——界面中的**拦截列表** | `country_lookup` | `tls.acme` |
+| 默认值 | **开启** | **关闭**，直到你开启 | **关闭**，直到你开启 | **关闭**，每个列表源各自 | **开启** | **关闭**，直到你开启 |
+| 目标 | `api.github.com` | `telemetry.wdkro.de` | `notify_url`——你的，不是我们的 | 每个列表源自己的地址，某个国家的在 `raw.githubusercontent.com` 上；自有列表源的地址归你 | `github.com`，重定向到 `release-assets.githubusercontent.com` | `tls.acme_directory`，未设置时为 Let's Encrypt |
+| 频率 | 每天一次 | 每天一次 | 有事发生时 | 按列表源自己的时间表，从每小时到每天 | 每天一次 | 首次需要时，之后在到期前 |
+| 携带内容 | 与你无关——只为获取最新版本发起的一次普通 GET | 一个随机标识和版本号，详见下文 | 你的防火墙发生了什么 | 一个 GET；自有列表源的用户名与密码发往它自己的 URL | 一个 GET | `tls.hostname`、在此生成的账户密钥，以及设置了的话 `tls.acme_email` |
+| 关闭方式 | `update_check = false` | `telemetry = false`，或界面中的**系统** | `notify_kind = ""`，或界面中的**通知** | 该列表源的开关 | `country_lookup = false` | `acme = false`——easywall 随后自行签发证书 |
 
-Two are on by default: the update check and the country lookup.
+默认开启的有两项：更新检查与国家/地区查询。
 
-`notify_url` and an own feed's URL are the only destinations easywall does not
-name. The authority is a default you may replace; the rest are fixed. That is why
-the notification address is treated as a credential and kept in `web.toml` at
-`0600`, beside `session_key`, and why an own feed's password is never shown back.
+`notify_url` 和自有列表源的 URL 是 easywall 唯一没有指定的目标。其中的主机部分是你可以替换的默认值，其余都是固定的。正因此，通知地址被当作凭据，以 `0600` 权限保存在 `web.toml` 中，与 `session_key` 并列；也正因此，自有列表源的密码绝不会被回显。
 
-The first five never delay a page. The update check is served from a cache on
-disk and refreshed in the background. A failure is remembered for an hour so a
-host with no route out is not retrying on every load. The count runs in the
-background and gives up after ten seconds. A feed refreshes in the background
-too, and a failed refresh keeps the copy already loaded; so does the country
-lookup. The certificate is the one that can stop a page, because it is what
-serves it.
+前五项从不会拖慢页面。更新检查由磁盘上的缓存提供，并在后台刷新。失败会被记住一小时，这样没有对外路由的主机就不会在每次加载时重试。计数在后台运行，十秒后放弃。列表源同样在后台刷新，刷新失败会保留已经加载的副本；国家/地区查询也是如此。唯一可能阻塞页面的是证书，因为页面正是由它提供的。
 
-### The update check
+### 更新检查
 
-A banner appears when a newer release exists. Switching it off changes nothing
-else — the version easywall is running is shown either way.
+存在更新的发布版本时会出现横幅。关掉它不会改变其他任何东西——无论开关如何，都会显示 easywall 正在运行的版本。
 
-### Counting installations
+### 安装计数 {#counting-installations}
 
-The first-run wizard asks rather than assumes. A critical bug matters differently
-at ten installations than at ten thousand. The count is the only way to know
-which this is — or to say a fix has reached most of them.
+初始化向导会询问，而不是替你假定。严重缺陷在十个安装和一万个安装中的分量不同。计数是唯一能知道属于哪种情况的办法——也是唯一能说明某个修复已覆盖其中大多数的办法。
 
-What it sends, in full — once a day, nothing else, ever:
+它发送的内容，完整如下——每天一次，除此之外永远没有别的：
 
 ```
 GET https://telemetry.wdkro.de/v1/count?id=<32 hex characters>&v=<version>
@@ -478,42 +338,36 @@ GET https://telemetry.wdkro.de/v1/count?id=<32 hex characters>&v=<version>
 
 | | |
 |---|---|
-| **Not** sent | the hostname, any address, any rule, any count of what you have configured |
-| The identifier | 16 random bytes generated on your machine, in `<data_dir>/web/telemetry.json`. Delete the file and the next report is a new installation as far as anyone can tell |
-| Why random | a value derived from the hostname or machine-id can be reproduced by anyone who knows the host, which turns a count into a lookup |
-| At the far end | one line — timestamp, identifier, version — and a 204. **Your address is not recorded**: it rate-limits the endpoint and never reaches disk. Lines are kept 35 days, then only the rolled-up number |
+| **不**发送 | 主机名、任何地址、任何规则、你配置内容的任何数量 |
+| 标识符 | 在你机器上生成的 16 个随机字节，位于 `<data_dir>/web/telemetry.json`。删除该文件，下一次上报在任何人看来都会是一个新安装 |
+| 为何随机 | 由主机名或 machine-id 派生的值，任何知道该主机的人都能复现，这会把计数变成一次查询 |
+| 在远端 | 一行——时间戳、标识符、版本——以及一个 204。**不记录你的地址**：它只用于对该端点做速率限制，永远不会落盘。记录保留 35 天，之后只剩汇总后的数字 |
 
-Turning it off does not need the core process to be running — consent that can only
-be withdrawn while another daemon is reachable would not be consent.
+关闭它并不需要 core 进程正在运行——只有在另一个守护进程可联系时才能撤回的同意，算不上同意。
 
-#### Asked again after an update
+#### 更新后再次询问
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/telemetry-ask" ext="png"
-     alt="A card at the top of the dashboard asking whether this installation may be counted, showing the request it would send, with the buttons Yes, count it and No, thanks and a link-styled Don't ask again." %}
+     alt="仪表盘顶部的一张卡片，询问本次安装是否可以被计入统计，并展示了它会发送的请求，以及「可以，计入统计」「不用了，谢谢」两个按钮和一个链接样式的「不再询问」。" %}
 </figure>
 
 | | |
 |---|---|
-| When | the first dashboard after a **minor or major** update (2.27 → 2.28), while counting is off. A patch release (2.28.0 → 2.28.1) does not ask |
-| Never asked | counting is on · *Don't ask again* was chosen · `EASYWALL_WEB_TELEMETRY` is set (the deployment decided) · demo mode |
-| An answer | *Yes*, *No*, the first-run wizard and the switch under **System** all count as the answer for this version |
-| Where it is kept | `<data_dir>/web/telemetry_prompt.json`. Delete it and the next dashboard asks again |
+| 何时 | **次要或主要**更新（2.27 → 2.28）后的第一个仪表盘，且计数处于关闭状态。补丁版本（2.28.0 → 2.28.1）不会询问 |
+| 从不询问 | 计数已开启 · 已选择 *不再询问* · 已设置 `EASYWALL_WEB_TELEMETRY`（由部署决定）· 演示模式 |
+| 一个回答 | *可以，计入统计*、*不用了，谢谢*、初始化向导以及**系统**下的开关，都算作针对此版本的回答 |
+| 保存在哪里 | `<data_dir>/web/telemetry_prompt.json`。删除它，下一次仪表盘会再次询问 |
 
-It is a card, not a page in the way: signing in to roll something back never
-waits on it.
+它是一张卡片，不是挡路的页面：登录以回滚某项更改时从不需要等它。
 
-> The number is a lower bound and cannot be made tamper-proof: the endpoint is open, so
-> anyone can invent identifiers. It is good enough to tell ten installations from ten
-> thousand, and to see whether a fix has spread. It is not good for anything else, and
-> is not claimed to be.
+> 这个数字是下界，无法做到防篡改：端点是开放的，任何人都能编造标识。它足以区分十个安装与一万个安装，也足以看出某个修复是否已经扩散。它不适用于其他任何用途，也没有被这样宣称。
 
 ---
 
-## Editor autocompletion
+## 编辑器自动补全
 
-Both files ship a JSON Schema. Point [Taplo](https://taplo.tamasfe.dev/) at them for
-inline validation in VS Code, Neovim and anything else speaking LSP:
+两个文件都随附一份 JSON Schema。把 [Taplo](https://taplo.tamasfe.dev/) 指向它们，即可在 VS Code、Neovim 以及任何使用 LSP 的编辑器中获得内联校验：
 
 ```toml
 # taplo.toml (project root)
@@ -526,7 +380,7 @@ include = ["config/web.toml"]
 url = "https://easywall-project.org/schemas/web.schema.json"
 ```
 
-Direct schema links:
+Schema 直接链接：
 
 - [easywall.schema.json]({{ '/schemas/easywall.schema.json' | relative_url }})
 - [web.schema.json]({{ '/schemas/web.schema.json' | relative_url }})

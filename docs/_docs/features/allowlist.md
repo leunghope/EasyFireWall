@@ -1,65 +1,52 @@
 ---
 layout: default
-title: Allowlist
-description: Addresses that reach every port, whether it is open or not — and the way back into your own machine.
+title: 允许列表
+description: 无论端口是否开放都能到达每一个端口的地址 —— 也是回到自己机器的退路。
 redirect_from:
   - /docs/features/whitelist/
 ---
 
-# Allowlist
+# 允许列表
 
-A list of addresses that are accepted. Not accepted *for the ports you opened* —
-accepted for **every port**, open or not. That is what makes it the way back
-into a machine whose rules you are about to change, and it is what makes a wide
-entry expensive.
+一份被接受的地址列表。不是「对你开放的端口」被接受，而是**每一个端口**都被接受，无论开放与否。正因如此，它才是回到一台你即将改动其规则的机器的退路；也正因如此，一条过宽的条目代价很高。
 
-> **An allowlisted source reaches services you never opened.** It does not pass
-> the port rules, it skips them. Prefer a single address over a range, and a
-> range over a whole network.
+> **允许列表中的来源可以到达你从未开放的服务。** 它不经过端口规则检查，而是直接跳过。优先写单个地址而不是网段，优先写网段而不是整个网络。
 
-## Where it sits
+## 它排在哪里
 
-The allowlist is consulted **after** the [blocklist]({{ '/docs/features/blocklist/' | relative_url }})
-and **before** the port rules. An address on both lists is dropped. The full
-packet order, for all of it at once, is the `rule-order` diagram on the
-[blocklist page]({{ '/docs/features/blocklist/#the-order' | relative_url }}).
+允许列表在[拦截列表]({{ '/docs/features/blocklist/' | relative_url }})**之后**、端口规则**之前**被查询。同时出现在两个列表中的地址会被丢弃。完整的数据包判定顺序（一次看全）见[拦截列表页面]({{ '/docs/features/blocklist/#the-order' | relative_url }})上的 `rule-order` 图。
 
-The allowlist also beats every [feed]({{ '/docs/features/feeds/' | relative_url }}):
-an address on it is accepted even when a feed lists it.
+允许列表也优先于每一个[列表源]({{ '/docs/features/feeds/' | relative_url }})：即使某个列表源列出了该地址，它仍会被接受。
 
-## Your way back in
+## 你的退路
 
-Put the address you administer the host from on this list **before** you start
-changing port rules.
+在开始改动端口规则**之前**，先把你用来管理主机的地址加到这个列表里。
 
 | | |
 |---|---|
-| What it survives | a closed SSH port, and every port rule you change |
-| What it does **not** survive | the protection modules — they run before the allowlist, so a packet a module drops never reaches it |
-| Why that rarely bites | the rate limits are counted per source address, so somebody else's flood cannot spend your budget |
-| The one exception | the [bogon filter]({{ '/docs/features/filters/' | relative_url }}) reads this list. It drops private source addresses, so without that it would drop you for administering the host from one — and the entry meant to prevent exactly that could never be reached |
+| 它能挺过什么 | SSH 端口关闭，以及你改动的每一条端口规则 |
+| 它**挺不过**什么 | 防护模块 —— 它们在允许列表之前运行，被模块丢弃的数据包根本到不了允许列表 |
+| 为什么这很少造成麻烦 | 速率限制按源地址分别计数，别人的洪水攻击花不掉你的额度 |
+| 唯一的例外 | [无效地址过滤]({{ '/docs/features/filters/' | relative_url }})会读取这个列表。它会丢弃私有源地址，若没有这个例外，你从私有地址管理主机就会被丢弃 —— 而那条本该防止此事的条目将永远无法命中 |
 
-Together with the [acceptance window]({{ '/docs/features/apply/' | relative_url }})
-that is two independent ways not to lose access to your own machine.
+配合[确认窗口]({{ '/docs/features/apply/' | relative_url }})，这就是两条互不依赖的路，保证你不会失去对自己机器的访问。
 
-## Accepted input
+## 可接受的输入
 
-One entry per line. Lines starting with `#` are comments; blank lines are
-ignored. The counter under the editor counts real entries — comments and blanks
-do not inflate it.
+每行一个条目。以 `#` 开头的行是注释；空行会被忽略。编辑器下方的计数器统计真实条目 —— 注释和空行不会把它撑大。
 
-| Form | Example |
+| 形式 | 示例 |
 |---|---|
-| IPv4 address | `192.0.2.42` |
-| IPv4 network | `198.51.100.0/24` |
-| IPv6 address | `2001:db8::1` |
-| IPv6 network | `2001:db8::/32` |
+| IPv4 地址 | `192.0.2.42` |
+| IPv4 网段 | `198.51.100.0/24` |
+| IPv6 地址 | `2001:db8::1` |
+| IPv6 网段 | `2001:db8::/32` |
 
-## When it does not work
+## 不生效时
 
-| Symptom | Cause |
+| 现象 | 原因 |
 |---|---|
-| An allowlisted address is still blocked | It is on the blocklist too — that is checked first. Or a protection module dropped it, which happens before the allowlist. The bogon filter is the exception: it honours this list |
-| Nothing changed after saving | Saving stages. It goes live on [Apply]({{ '/docs/features/apply/' | relative_url }}) |
-| The editor names a line number | That line is not a valid address or CIDR; the message says why |
-| You allowed too broad a range | Remove it, save, apply. If it already locked you out, do nothing — the window rolls it back |
+| 允许列表中的地址仍被拦截 | 它同时也在拦截列表里 —— 那个列表先被检查。或者某个防护模块丢弃了它，这发生在允许列表之前。无效地址过滤是例外：它认可这个列表 |
+| 保存后没有任何变化 | 保存只是暂存。要[应用]({{ '/docs/features/apply/' | relative_url }})之后才会生效 |
+| 编辑器指出了行号 | 那一行不是合法的地址或 CIDR；提示信息会说明原因 |
+| 你放行了过宽的网段 | 删掉它，保存，应用。如果它已经把你锁在外面，什么都别做 —— 确认窗口会把它回滚 |

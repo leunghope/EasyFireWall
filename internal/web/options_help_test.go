@@ -97,6 +97,11 @@ func TestGFMHeadingIDMatchesTheBuiltSite(t *testing.T) {
 // A "# ..." line inside a fenced block is counted too, which kramdown would not
 // do. It adds an id no option links to, and would shift a repeat's suffix only
 // if a fenced line repeated a heading, which none on this page does.
+//
+// The page is written in Chinese, so each heading the interface links to
+// carries an explicit {#id} — the English anchor, which kramdown writes
+// verbatim. Those are read as written; a heading without one falls back to the
+// id kramdown would compute from its text.
 func filtersHeadingIDs(t *testing.T) map[string]bool {
 	t.Helper()
 	path := filepath.Join(filepath.Dir(localesDir(t)), "docs", "_docs", "features", "filters.md")
@@ -105,7 +110,11 @@ func filtersHeadingIDs(t *testing.T) map[string]bool {
 		t.Fatal(err)
 	}
 	ids, seen := map[string]bool{}, map[string]int{}
-	for _, m := range regexp.MustCompile(`(?m)^#{1,6}[ \t]+(.*?)[ \t#]*$`).FindAllStringSubmatch(string(raw), -1) {
+	for _, m := range headingLineRe.FindAllStringSubmatch(string(raw), -1) {
+		if a := headingIDRe.FindStringSubmatch(m[1]); a != nil {
+			ids[a[1]] = true
+			continue
+		}
 		ids[gfmHeadingID(m[1], seen)] = true
 	}
 	return ids
@@ -130,6 +139,9 @@ var (
 	toggleRe = regexp.MustCompile(`name="([a-z_]+)" class="toggle"`)
 	cardIDRe = regexp.MustCompile(`^id="opt-([a-z_]+)">`)
 	helpRe   = regexp.MustCompile(`\{\{template "opt_help" \(optHelp "([a-z_]+)"\)\}\}`)
+
+	headingLineRe = regexp.MustCompile(`(?m)^#{1,6}[ \t]+(.*?)[ \t#]*$`)
+	headingIDRe   = regexp.MustCompile(`\{#([A-Za-z0-9_-]+)\}\s*$`)
 )
 
 // Every card on the page is in the table, every entry in the table is a card,

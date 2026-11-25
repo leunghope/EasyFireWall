@@ -1,59 +1,44 @@
 ---
 layout: default
-title: License
-description: GPL-3.0, and what it asks of you — which is nothing at all until you hand easywall to somebody else.
+title: 许可证
+description: GPL-3.0，以及它对你要求了什么 —— 在把 easywall 交给别人之前，它什么都不要求。
 ---
 
-# License
+# 许可证
 
-easywall is under the **GNU General Public License, version 3**. The full text
-is [in the repository](https://github.com/jp1337/easywall/blob/main/LICENSE) and
-at [gnu.org](https://www.gnu.org/licenses/gpl-3.0.html). This page is what it
-means in practice; it is not legal advice, and where the two disagree the
-licence is what counts.
+easywall 采用 **GNU General Public License, version 3**。完整文本见[仓库中的 LICENSE 文件](https://github.com/jp1337/easywall/blob/main/LICENSE)与 [gnu.org](https://www.gnu.org/licenses/gpl-3.0.html)。本页讲的是它在实践中意味着什么；这不是法律意见，两者若有出入，以许可证原文为准。
 
-## Running it
+## 运行
 
 | | |
 |---|---|
-| On your own machine | Yes. No conditions at all |
-| At work, on company hardware | Yes. Commercial use is use |
-| On a server other people reach | Yes. GPL-3.0 is not the AGPL — serving something over a network is not distribution |
-| Modified, for yourself | Yes. A change you keep is yours and nobody has to see it |
-| Paying nothing, telling nobody | Yes |
+| 在自己的机器上 | 可以。没有任何条件 |
+| 在工作中、在公司硬件上 | 可以。商业使用也是使用 |
+| 在别人可以访问的服务器上 | 可以。GPL-3.0 不是 AGPL —— 通过网络提供服务不构成分发 |
+| 修改后自己用 | 可以。你保留的改动属于你，不需要给任何人看 |
+| 不付钱、不告诉任何人 | 可以 |
 
-Nothing on that list creates an obligation. That is the whole of it for almost
-everybody who reads this page.
+上面这些都不会产生义务。对读过本页的几乎所有人来说，全部内容就是这些。
 
-## Handing it to somebody else
+## 交给别人
 
-Obligations begin at **distribution** — a binary, a package, a container image,
-a modified source tree, anything that leaves your hands.
+义务从**分发**开始 —— 二进制文件、安装包、容器镜像、修改过的源码树，任何离开你手上的东西。
 
-| You give them | You also owe them |
+| 你交给别人 | 你还欠别人 |
 |---|---|
-| An unmodified binary or package | The corresponding source, and this licence with it |
-| A build with your changes in it | The same, including your changes, under GPL-3.0 |
-| A container image with easywall in it | The same. An image is a distribution of what is inside it |
+| 未修改的二进制或安装包 | 相应的源码，以及随附本许可证 |
+| 含有你改动的构建产物 | 同样的内容，包括你的改动，按 GPL-3.0 提供 |
+| 含有 easywall 的容器镜像 | 同样。镜像就是对其内容的分发 |
 
-And in every case the copyright notices and the licence text stay where they
-are. You may charge for the distribution itself; the source that comes with it
-is not something you get to withhold or sell separately.
+无论哪种情况，版权声明与许可证文本都留在原处。你可以为分发本身收费；随附的源码不是你可以扣下或单独出售的东西。
 
-> **A network service is not distribution.** Running a modified easywall for
-> other people to use over HTTP does not oblige you to publish anything. That
-> obligation is the AGPL's, and easywall is not under it.
+> **网络服务不构成分发。** 运行一份修改过的 easywall，让别人通过 HTTP 使用，
+> 并不要求你公开任何东西。那是 AGPL 的义务，easywall 不受它约束。
 
-## Contributing
+## 参与贡献
 
-A pull request is contributed under GPL-3.0, the same as the rest. There is no
-contributor licence agreement and nothing to sign — see
-[Contributing]({{ '/docs/contributing/' | relative_url }}).
+pull request 同样以 GPL-3.0 授权贡献。没有贡献者许可协议，也没有东西要签署 —— 见[贡献指南]({{ '/docs/contributing/' | relative_url }})。
 
-## Why this licence
+## 为什么用这个许可证
 
-easywall puts a web interface in front of a machine's packet filter. Anyone
-running it is trusting the code with the one thing standing between their host
-and the network. A licence that lets a modified copy be handed on with the
-modification hidden is the wrong licence for that. GPL-3.0 means the version
-somebody hands you is a version you can read.
+easywall 在机器的数据包过滤器前面放了一层 Web 界面。任何运行它的人，都在把主机与网络之间唯一的屏障托付给这份代码。如果一份许可证允许修改过的副本在隐藏改动的情况下继续传递，那它就是不适合此处的许可证。GPL-3.0 意味着别人交给你的版本，是一个你能读到的版本。

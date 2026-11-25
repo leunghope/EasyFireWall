@@ -1,27 +1,20 @@
 ---
 layout: default
-title: Behind a Reverse Proxy
-description: Put easywall behind nginx and have it still know which client is talking to it.
+title: 反向代理之后
+description: 把 easywall 放在 nginx 后面，同时仍然知道是哪个客户端在跟它说话。
 ---
 
-# Behind a Reverse Proxy
+# 反向代理之后
 
-easywall terminates TLS itself, so a proxy in front of it is a choice rather
-than a requirement. Make that choice, and one thing breaks quietly: every
-request now arrives from the proxy. That has three consequences:
+easywall 自己终止 TLS，所以在它前面放一个代理是可选项，而不是必需项。一旦做了这个选择，有一件事会悄悄坏掉：现在每个请求都来自代理。由此产生三个后果：
 
-- the audit log records the proxy's address
-- the apply screen cannot tell whether *you* are about to be locked out
-- the login limiter's five attempts per ten minutes are shared by everybody
-  behind it
+- 审计日志记录的是代理的地址
+- 应用页无法判断*你*是否即将被锁在门外
+- 登录限流的「每 10 分钟 5 次尝试」被代理背后的所有人共用
 
-Listing the proxy in `trusted_proxies` fixes the first and the last. The apply
-screen still says *cannot tell*: it then knows your address, but your browser
-reaches the proxy's port, not easywall's, and no request says which port or
-which host. Check from a second connection, as the apply step says. Getting the
-list wrong hands address spoofing to anything that can reach the port.
+把代理写进 `trusted_proxies` 能修好第一和第三个。应用页仍然会显示*无法判断*：此时它知道你的地址，但你的浏览器连的是代理的端口，不是 easywall 的，而没有任何请求会说明是哪个端口或哪台主机。按应用步骤里说的做，从第二条连接验证。列表填错，等于把地址伪造的能力交给任何能连上这个端口的东西。
 
-## 1 · Point nginx at easywall
+## 1 · 让 nginx 指向 easywall
 
 ```nginx
 server {
@@ -44,93 +37,60 @@ server {
 }
 ```
 
-## 2 · Tell easywall which peer to believe
+## 2 · 告诉 easywall 该信哪个对端
 
 ```toml
 trusted_proxies = ["127.0.0.1"]
 ```
 
-or `EASYWALL_WEB_TRUSTED_PROXIES=127.0.0.1`.
+或者 `EASYWALL_WEB_TRUSTED_PROXIES=127.0.0.1`。
 
-The value is the address **the proxy's connection arrives from**, as easywall
-sees it — not the client's, and not the network the proxy is on.
+这个值填的是**代理发起连接时的地址**，也就是 easywall 看到的那个地址——不是客户端的地址，也不是代理所在的网段。
 
-## 3 · Check that it took
+## 3 · 确认它生效了
 
-Sign in and open the [audit log]({{ '/docs/features/audit-log/' | relative_url }}).
-The entry for that sign-in carries your own address, not `127.0.0.1`. If it says
-`127.0.0.1`, the header is not being believed: the peer is not on the list, or
-nginx is not sending `X-Forwarded-For`.
+登录后打开[审计日志]({{ '/docs/features/audit-log/' | relative_url }})。那次登录的记录里应该是你自己的地址，而不是 `127.0.0.1`。如果写的是 `127.0.0.1`，说明这个头没有被采信：对端不在列表里，或者 nginx 没有发送 `X-Forwarded-For`。
 
-## In Docker
+## 在 Docker 里
 
-`trusted_proxies` names the **proxy container's own address**, and the default
-bridge is not the one a compose project uses. Ask Docker rather than guessing:
+`trusted_proxies` 里填的是**代理容器自己的地址**，而默认 bridge 并不是 compose 项目所用的那个。直接问 Docker，不要猜：
 
 ```bash
 docker network inspect <network> --format '{% raw %}{{range .Containers}}{{.Name}} {{.IPv4Address}}{{"\n"}}{{end}}{% endraw %}'
 ```
 
-The default bridge is `172.17.0.0/16`; a compose project gets a network of its
-own, typically `172.18.0.0/16` upward. Take the proxy's address out of that
-output — a single address, with no mask.
+默认 bridge 是 `172.17.0.0/16`；compose 项目会得到自己的网络，通常从 `172.18.0.0/16` 起。从上面的输出里取出代理的地址——单个地址，不带掩码。
 
-> **A container's address is not stable across a recreate.** Give the proxy a
-> fixed address on a user-defined network, or the list stops matching the next
-> time the stack comes up and easywall quietly goes back to believing nobody.
+> **容器的地址在重建之后并不固定。** 在用户自定义网络上给代理一个固定地址，否则下次整套服务起来时列表就对不上了，easywall 会悄悄回到谁都不信的状态。
 
-## What it costs
+## 代价是什么
 
-Being on this list is total trust in that peer. Two mistakes hand address
-spoofing to anyone who can reach the port:
+被列进这个列表，意味着对该对端的完全信任。两个错误就会把地址伪造能力交给任何能连上这个端口的人：
 
-- listing an address that is **not** actually a proxy in front of easywall;
-- listing a **network** rather than the proxies themselves — every host in
-  `10.0.0.0/8` can then choose the address easywall records, decides lockouts
-  on, and rate limits.
+- 列了一个实际上**不是** easywall 前置代理的地址；
+- 列了**网段**而不是代理本身——那样 `10.0.0.0/8` 里每台主机都能自行选择 easywall 记录的地址、据以判定是否锁定，并影响限流。
 
-List the proxies. Not the subnet they live in, not `0.0.0.0/0`, and never an
-address you do not control. This is why the setting is a *list* and not a
-boolean. "Trust the header" with no way to say whose is
-GHSA-3fxj-6jh8-hvhx, GHSA-rjr7-jggh-pgcp and GHSA-9g5q-2w5x-hmxf. No
-configuration of easywall can express it.
+列代理本身。不是它们所在的子网，不是 `0.0.0.0/0`，也绝不要是你控制不了的地址。这就是这个设置是*列表*而不是布尔值的原因。「信任这个头」却说不出该信谁的头，对应的就是 GHSA-3fxj-6jh8-hvhx、GHSA-rjr7-jggh-pgcp 和 GHSA-9g5q-2w5x-hmxf。easywall 的任何配置都无法表达这种设定。
 
-`X-Real-IP`, `True-Client-IP` and `Forwarded` are never believed, from any peer.
-From an untrusted one they still flip the audit log's `via-proxy` marker —
-their presence alone says something forwarded this, even though what they say
-is never read. From a listed proxy they mark nothing at all: only
-`X-Forwarded-For` decides there, which is why step 1 sets exactly that header.
+`X-Real-IP`、`True-Client-IP` 和 `Forwarded` 无论来自哪个对端，都永不采信。来自不可信对端时，它们仍会翻转审计日志里的 `via-proxy` 标记——它们的存在本身就说明有东西转发了这个请求，即便其内容从不被读取。来自列表中的代理时，它们什么也不标记：在那里只有 `X-Forwarded-For` 说了算，这正是第 1 步恰好设置那个头的原因。
 
-## Passkeys do not work through this
+## 通行密钥在这里用不了
 
-The example above has nginx on 443, forwarding to easywall's own
-`https://127.0.0.1:12227`. The browser sees port 443. easywall sees `:12227`
-— the only port it runs on. WebAuthn binds a passkey to the exact origin the
-browser used, so the two disagree and every ceremony fails.
+上面的示例里 nginx 监听 443，转发到 easywall 自己的 `https://127.0.0.1:12227`。浏览器看到的是 443 端口，easywall 看到的是 `:12227`——它唯一监听的端口。WebAuthn 把通行密钥绑定到浏览器实际使用的确切 origin，两者不一致，于是每次认证流程都失败。
 
-`X-Forwarded-Host` would tell easywall what the browser saw, and it is
-refused. `X-Forwarded-For` is only ever believed from a proxy on
-`trusted_proxies`; nothing scopes *which* proxy's `X-Forwarded-Host` to
-believe the same way, so this interface reads it from no one.
+`X-Forwarded-Host` 本可以告诉 easywall 浏览器看到的是什么，但它被拒绝了。`X-Forwarded-For` 只在来自 `trusted_proxies` 中的代理时才被采信；而对于 `X-Forwarded-Host`，没有任何机制能同样地限定*该信哪个*代理，所以这个接口对谁都不读它。
 
-Two ways out, both outside this page's scope. Point a browser at easywall
-directly on 443, with no proxy in front. `tls.acme` exists for exactly this,
-and removes the reason to run a proxy for the certificate alone. It is
-Debian package only, not in the container image — see
-[Docker → Your own certificate]({{ '/docs/installation/docker/' | relative_url }}#your-own-certificate).
-Or accept that passkeys are one more thing this configuration does not
-offer, the way `trusted_proxies` already is for the audit log and the login
-limiter. The password-plus-TOTP factor is unaffected either way.
+有两条出路，都超出本页范围。让浏览器直接连 443 上的 easywall，前面不放代理。`tls.acme` 正是为此存在的，它消除了「单为证书而跑一个代理」的理由。它仅在 Debian 软件包中提供，容器镜像里没有——见 [Docker → 使用自己的证书]({{ '/docs/installation/docker/' | relative_url }}#your-own-certificate)。或者接受通行密钥是这套配置不提供的又一项功能，就像 `trusted_proxies` 下审计日志和登录限流已经如此一样。无论哪种方式，密码加 TOTP 这个因子都不受影响。
 
-## When it does not work
+## 出问题时
 
-| Symptom | Cause |
+| 症状 | 原因 |
 |---|---|
-| The audit log records the proxy | The peer is not on `trusted_proxies`, or nginx sends no `X-Forwarded-For` |
-| easywall refuses to start | An entry that is neither an address nor a CIDR network. The message names it |
-| Apply's lockout line says *cannot tell* | Expected behind a proxy: the port your browser reaches is the proxy's |
-| It worked, then stopped | A container was recreated and took a new address. Fix the address, not the list |
-| The passkey card is enabled but every ceremony fails | The origin mismatch above — see *Passkeys do not work through this* |
+| 审计日志记录的是代理 | 对端不在 `trusted_proxies` 里，或者 nginx 没有发送 `X-Forwarded-For` |
+| easywall 拒绝启动 | 某个条目既不是地址也不是 CIDR 网段。报错信息里会点名它 |
+| 应用页的锁定判定显示*无法判断* | 在代理后面属于预期：你浏览器连到的是代理的端口 |
+| 本来能用，后来不行了 | 某个容器被重建并拿到了新地址。改地址，不要改列表 |
+| 通行密钥卡片可用，但每次认证流程都失败 | 上面的 origin 不匹配——见*通行密钥在这里用不了* |
 
-**Next:** [Configuration]({{ '/docs/configuration/' | relative_url }}) ·
-[Security]({{ '/docs/security/' | relative_url }})
+**下一步：** [配置]({{ '/docs/configuration/' | relative_url }}) ·
+[安全]({{ '/docs/security/' | relative_url }})

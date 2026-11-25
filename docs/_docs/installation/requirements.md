@@ -1,71 +1,59 @@
 ---
 layout: default
-title: Requirements
-description: What the host needs, what it does not, and which install path to take.
+title: 环境要求
+description: 主机需要什么、不需要什么，以及该走哪条安装路径。
 ---
 
-# Requirements
+# 环境要求
 
 {% include themed-figure.html base="/assets/diagrams/install-choice" ext="svg"
-   alt="Decision tree: just looking leads to demo mode; Debian or Ubuntu leads to the .deb package; already running containers leads to Docker; otherwise build from source." %}
+   alt="决策树：只是看看，进入演示模式；Debian 或 Ubuntu，使用 .deb 软件包；已经在跑容器，使用 Docker；其余情况从源码构建。" %}
 
-## The host
+## 主机
 
-| | Minimum | |
+| | 最低要求 | |
 |---|---|---|
-| Kernel | 3.13 | when the nftables netlink API arrived |
-| nftables | any | `apt install nftables` |
-| init | systemd — Debian package | for the service units |
-| init | none — Docker | `supervisord` runs both processes inside the container |
-| Architecture | amd64 or arm64 | binaries shipped for both |
-| RAM | ~32 MB | both processes, idle |
-| RAM, signing in | ~200 MB peak | one password check (Argon2id, 64 MiB) at a time, however many arrive |
-| Disk | ~20 MB | binaries, assets, config |
-| Privilege | `CAP_NET_ADMIN` | the core needs it to write rules. The web process does not |
+| 内核 | 3.13 | nftables netlink API 问世的版本 |
+| nftables | 任意版本 | `apt install nftables` |
+| init | systemd——Debian 软件包 | 用于服务单元 |
+| init | 无——Docker | 容器内由 `supervisord` 运行两个进程 |
+| 架构 | amd64 或 arm64 | 两种架构都提供二进制 |
+| 内存 | 约 32 MB | 两个进程空闲时 |
+| 内存，登录时 | 峰值约 200 MB | 同一时间只做一次密码校验（Argon2id，64 MiB），无论同时来多少请求 |
+| 磁盘 | 约 20 MB | 二进制、静态资源、配置 |
+| 权限 | `CAP_NET_ADMIN` | core 需要它来写规则。web 进程不需要 |
 
-The packet log's NFLOG group needs the `nfnetlink_log` kernel module.
-Nothing here loads it by hand — the kernel autoloads it the first time a
-process holding `CAP_NET_ADMIN` binds an NFLOG group, the same way it
-autoloads `nf_tables`. Only a host with module loading disabled entirely
-needs `modprobe nfnetlink_log` itself, and falls back to the kernel log
-until it gets it.
+数据包日志的 NFLOG 组需要 `nfnetlink_log` 内核模块。这里没有任何地方手动加载它——第一次有持有 `CAP_NET_ADMIN` 的进程绑定 NFLOG 组时，内核会自动加载，方式与自动加载 `nf_tables` 相同。只有完全禁用模块加载的主机才需要自己执行 `modprobe nfnetlink_log`，并且在加载成功之前，日志会回退到内核日志。
 
-## Tested on
+## 测试过的环境
 
-| Distribution | Architectures |
+| 发行版 | 架构 |
 |---|---|
 | Debian 12 · Debian 11 | amd64, arm64 |
 | Ubuntu 24.04 LTS · 22.04 LTS | amd64, arm64 |
-| Raspbian (Debian 12) | arm64 |
+| Raspbian（Debian 12） | arm64 |
 
-Other systemd distributions with nftables — Arch, Fedora, openSUSE — should work but
-are not in CI.
+其他带 nftables 的 systemd 发行版——Arch、Fedora、openSUSE——应当可用，但不在 CI 中。
 
-## Ports
+## 端口
 
-| Port | Direction | Purpose |
+| 端口 | 方向 | 用途 |
 |---|---|---|
-| 12227/tcp | inbound | the web interface, HTTPS only |
-| 80/tcp | inbound | only when `tls.acme = true` — the HTTP-01 challenge a certificate authority uses to prove control of `tls.hostname`. Not opened by easywall's own rules; see [Security → Transport]({{ '/docs/security/' | relative_url }}#the-one-exception-acmes-port-80) |
+| 12227/tcp | 入站 | Web 界面，仅 HTTPS |
+| 80/tcp | 入站 | 仅当 `tls.acme = true` 时——证书颁发机构用 HTTP-01 challenge 证明对 `tls.hostname` 的控制权。不由 easywall 自己的规则开放；见[安全 → 传输]({{ '/docs/security/' | relative_url }}#the-one-exception-acmes-port-80) |
 
-No other plaintext port. The two processes talk over a Unix socket, not a port.
+没有其他明文端口。两个进程通过 Unix socket 通信，而不是端口。
 
-## Not required
+## 不需要
 
-- Python, Node.js, or any runtime beyond the two binaries
-- A database
-- A Go toolchain on the target — use the `.deb` or a release binary
-- **Outbound internet access.** Fonts, stylesheet and scripts are served by easywall
-  itself, so it renders correctly on an air-gapped host. Two things reach out, and
-  both fail quietly. The update check is on, and can be switched off. The
-  installation count is off, until someone switches it on. Both are listed in
-  full under [Security]({{ '/docs/security/' | relative_url }})
+- Python、Node.js，或两个二进制之外的任何运行时
+- 数据库
+- 目标机上的 Go 工具链——用 `.deb` 或发布版二进制
+- **出站互联网访问。** 字体、样式表和脚本都由 easywall 自身提供，因此在隔离网络的主机上也能正确渲染。有两处会向外连接，且两者都静默失败。更新检查默认开启，可以关闭。安装计数默认关闭，除非有人开启。两者的完整说明都在[安全]({{ '/docs/security/' | relative_url }})下
 
-## Coming from easywall v1
+## 从 easywall v1 迁移
 
-v1 used iptables and YAML; v2 uses nftables and JSON. The rule file cannot be
-imported — recreate the rules, or use [export/import]({{ '/docs/features/export-import/' | relative_url }})
-once v2 is running.
+v1 用 iptables 和 YAML；v2 用 nftables 和 JSON。规则文件无法导入——请重建规则，或在 v2 运行后使用[导出/导入]({{ '/docs/features/export-import/' | relative_url }})。
 
 ```bash
 sudo systemctl disable --now easywall easywall-web   # stop v1
@@ -77,8 +65,8 @@ sudo iptables -F && sudo iptables -X
 sudo ip6tables -F && sudo ip6tables -X
 ```
 
-**Next:** [Debian / Ubuntu]({{ '/docs/installation/debian/' | relative_url }}) ·
+**下一步：** [Debian / Ubuntu]({{ '/docs/installation/debian/' | relative_url }}) ·
 [Docker]({{ '/docs/installation/docker/' | relative_url }}) ·
-[From source]({{ '/docs/installation/manual/' | relative_url }}) ·
-[Demo mode]({{ '/docs/installation/demo/' | relative_url }}) ·
-[First run]({{ '/docs/installation/first-run/' | relative_url }})
+[从源码构建]({{ '/docs/installation/manual/' | relative_url }}) ·
+[演示模式]({{ '/docs/installation/demo/' | relative_url }}) ·
+[首次运行]({{ '/docs/installation/first-run/' | relative_url }})

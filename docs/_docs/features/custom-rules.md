@@ -1,28 +1,28 @@
 ---
 layout: default
-title: Custom Rules
-description: Raw nftables statements for what the other pages cannot express — and the one character that is refused.
+title: 自定义规则
+description: 手写的原始 nftables 语句，用来表达其他页面无法表达的内容——以及那一个会被拒绝的字符。
 ---
 
-# Custom Rules
+# 自定义规则
 
-nftables statements, written by hand, appended to easywall's input chain. This is
-the escape hatch for anything the typed pages cannot say:
+手写的 nftables 语句，追加到 easywall 的 input 链。凡是表单页面无法表达的内容，
+都从这里出手：
 
-- a port open to one source only
-- a rate limit on a specific service
-- a log line you want
+- 只对单个来源开放的端口
+- 对某个特定服务做的速率限制
+- 你想要的一条日志记录
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/custom" ext="png"
-     alt="The custom rules page: a monospaced text area holding one nftables statement per line with comments between them, a rule counter beneath it, and context cards warning that a malformed rule can lock you out and explaining that only the statement body is written, not the full add rule command." %}
-  <figcaption>Syntax is checked as you type, by the same <code>nft</code> that will apply it.</figcaption>
+     alt="自定义规则页面：一个等宽文本框，每行一条 nftables 语句，语句之间可以夹注释；下方是规则计数；旁边是提示卡片，警告写错规则可能把你锁在门外，并说明只需写语句主体，不必写完整的 add rule 命令。" %}
+  <figcaption>语法在你输入时就被检查，检查用的正是稍后执行它的同一个 <code>nft</code>。</figcaption>
 </figure>
 
-## The shape of the file
+## 文件的形状
 
-One statement per line. `#` comments and the blank lines between groups are kept
-exactly as you wrote them — they are part of the file, not stripped on save.
+每行一条语句。`#` 注释和分组之间的空行都按你写的原样保留——它们是文件的一部分，
+保存时不会被去掉。
 
 ```
 # allow Prometheus node-exporter only from the monitoring host
@@ -35,72 +35,63 @@ udp dport 53 limit rate 50/second accept
 tcp dport 10000 log prefix "legacy-admin: " drop
 ```
 
-Each line is written into the input chain as `add rule inet easywall input <your
-line>`, so write the statement only — no `add rule`, no table, no chain.
+每一行都会以 `add rule inet easywall input <your line>` 的形式写入 input 链，
+因此只写语句本身——不写 `add rule`，不写表，不写链。
 
-## No newlines, no semicolons
+## 不允许换行，不允许分号
 
-`nft` reads both as the end of one command and the start of the next. A statement
-carrying either is therefore not a rule but a second command, run by the root
-daemon, able to reach tables easywall does not own. Both are refused — on save,
-on import, and again inside the core.
+`nft` 会把两者都读作一条命令的结束和下一条命令的开始。因此，含有其中任何一种的语句
+就不是一条规则，而是一条第二条命令：由 root 守护进程执行，能够触及 easywall 并不
+拥有的表。两者都会被拒绝——保存时、导入时，以及在 core 内部再拒绝一次。
 
-> **Demonstrated, not theoretical.** An imported rule containing a newline wrote
-> into a neighbouring table, which is precisely what "easywall owns one table and
-> never looks at another" says cannot happen. The check is on the *shape* of the
-> input rather than on nft's grammar. So it does not depend on a subprocess being
-> available, or on a wrapper happening to be unbalanced. The reasoning is in
-> [Security]({{ '/docs/security/' | relative_url }}).
+> **这是实测过的，不是理论推演。** 一条含有换行的导入规则写进了相邻的表，而这正是
+> 「easywall 只拥有一个表，从不查看另一个表」声称不可能发生的事。检查针对的是输入的
+> *形状*，而不是 nft 的语法。因此它既不依赖子进程是否可用，也不依赖某个包装器是否
+> 恰好括号不配对。推理见 [安全]({{ '/docs/security/' | relative_url }})。
 
-There is also a ceiling of **256 statements** per check, which is far above any
-real rule set and far below what a form body can carry.
+每次校验还有 **256 条语句**的上限——远高于任何真实的规则集，也远低于表单请求体
+能够携带的量。
 
-## Where they are evaluated
+## 在哪里被评估
 
-Last — after the ports, before the chain policy drops what is left.
+在最后——端口之后，链策略丢弃剩余流量之前。
 
 {% include themed-figure.html base="/assets/diagrams/rule-order" ext="svg"
-   alt="Decision flow for an incoming packet: the fragment drop first when it is on, then loopback, then the IPv6 mode, then the ping and reset rate limits, then established connections and neighbour discovery, then the other protection modules, then Docker bridge networks, then the blocklist which drops, then the allowlist which accepts every port, then the feeds you switched on which drop, then pings, when Answer pings is on, then open ports, then custom rules, and finally the chain policy which drops." %}
+   alt="入站数据包的判定流程：先按需丢弃分片，然后是回环地址，接着是 IPv6 模式，然后是 ping 与 RST 的速率限制，再是已建立的连接与邻居发现，然后是其余防护模块，接着是 Docker 网桥网络，然后是拦截列表（命中即丢弃），接着是允许列表（接受所有端口），再是你启用的列表源（命中即丢弃），然后是 ping（仅当「回应 ping」开启时），接着是开放端口，再是自定义规则，最后是链的默认策略（丢弃）。" %}
 
-Two consequences worth knowing:
+有两个后果值得了解：
 
-- A packet an earlier rule already accepted never reaches your statement. To
-  *restrict* something the port rules opened, remove the port rule — a custom
-  `drop` after it will not be consulted.
-- A packet your statement accepts is one the policy would otherwise have
-  dropped, which is the usual reason to write one.
+- 更早的规则已经接受的数据包，永远不会到达你的语句。要*限制*端口规则放开的内容，
+  请删掉那条端口规则——排在它后面的自定义 `drop` 不会被查询。
+- 你的语句接受的数据包，正是策略原本会丢弃的那一个；这也通常是写它的理由。
 
-## Checked as you type
+## 输入时即校验
 
-The editor sends the text to the core, which runs it past `nft --check` in a
-throwaway table and reports the line number of anything it rejects. A valid set
-costs one `nft` run; only a rejected one is re-checked line by line, to say which
-line it was.
+编辑器把文本发送给 core，core 在一个一次性表里让它跑过 `nft --check`，并报告任何
+被拒绝内容所在的行号。一组合法的语句只花一次 `nft` 运行；只有被拒绝的那一组才会
+逐行复查，以指出是哪一行。
 
-| State | What it means |
+| 状态 | 含义 |
 |---|---|
-| No errors | `nft` parses every statement. It does not mean the rule does what you meant |
-| A line number | That statement is not valid nftables syntax; the message is nft's own |
-| "Validation unavailable" | The core is not reachable, so nothing was checked — not "everything is fine" |
+| 无错误 | `nft` 能解析每一条语句。这不代表规则会做你想要的事 |
+| 一个行号 | 该语句不是合法的 nftables 语法；消息来自 nft 本身 |
+| 「实时校验未运行」 | core 不可达，因此什么都没校验——不代表「一切正常」 |
 
-In [demo mode]({{ '/docs/installation/demo/' | relative_url }}) there is no `nft`
-behind the interface, so it reports the checker as unavailable rather than
-claiming your rules are valid.
+在[演示模式]({{ '/docs/installation/demo/' | relative_url }})下，界面背后没有 `nft`，
+因此它把检查器报告为不可用，而不是声称你的规则合法。
 
-## Nothing happens until you apply
+## 在你应用之前，什么都不会发生
 
-Saving stages, like every other page. Worth knowing here: a statement that passes
-the syntax check can still be refused by the **kernel** at
-[apply]({{ '/docs/features/apply/' | relative_url }}) time. Two examples: a chain
-that does not exist, a set that is not defined. A failed apply rolls back to the
-previous rules.
+保存只是暂存，和其他每个页面一样。这里值得知道的是：通过语法检查的语句，仍然可能
+在[应用]({{ '/docs/features/apply/' | relative_url }})时被**内核**拒绝。两个例子：
+链不存在，集合未定义。应用失败会回滚到先前的规则。
 
-## When it does not work
+## 不工作时
 
-| Symptom | Cause |
+| 现象 | 原因 |
 |---|---|
-| "contains a newline, which nft reads as the end of the command" | Put each statement on its own line; it is not a formatting preference |
-| Valid syntax, no effect | An earlier rule accepted the packet first — see *Where they are evaluated* |
-| The apply failed and rolled back | The kernel refused the statement. `journalctl -u easywall-core` has nft's message |
-| Comments disappeared | They no longer do. Saving keeps `#` lines and blank lines |
-| The syntax check says nothing at all | The core is unreachable, or you are in demo mode |
+| 提示规则里含有换行，nft 会把它读作命令的结束 | 把每条语句单独放一行；这不是格式偏好问题 |
+| 语法合法，却没有效果 | 更早的规则先接受了该数据包——见*在哪里被评估* |
+| 应用失败并回滚了 | 内核拒绝了该语句。`journalctl -u easywall-core` 里有 nft 的消息 |
+| 注释消失了 | 现在不会了。保存会保留 `#` 行和空行 |
+| 语法检查什么都不说 | core 不可达，或者你处在演示模式 |

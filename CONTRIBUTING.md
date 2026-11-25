@@ -94,10 +94,14 @@ through the API without reading the repository, or a human pasting model output,
 1. Copy `locales/en.json` to `locales/<lang>.json`
 2. Translate all values (keep the `id` fields unchanged)
 3. Translate `language_name` into that language's **own** name — `Deutsch`, not
-   `German`; `Français`, not `French`. It is what the switch in the sidebar
-   shows, whatever language the interface is currently in.
+   `German`; `Français`, not `French`; `简体中文`, not `Chinese`. It is what the
+   switch in the sidebar shows, whatever language the interface is currently in.
 4. Add an entry to `locales/status.json`: `"<lang>": { "reviewed": false }`
 5. Open a PR with the subject: `feat(i18n): add <language> translation`
+6. For Simplified Chinese, follow
+   [`docs-tech/translation-guidelines.md`](docs-tech/translation-guidelines.md):
+   it fixes the terminology and the sentences whose meaning must survive
+   translation.
 
 Nothing else is needed to make it appear: the switch is built from whatever
 `locales/*.json` contains.

@@ -36,10 +36,15 @@
  */
 import { readFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const MAX = 30;
 const AVG = 18;
-const ROOT = realpathSync(new URL('..', import.meta.url).pathname);
+// `new URL(...).pathname` is percent-encoded, so a checkout whose path holds a
+// character outside ASCII (…/项目/easywall) resolved to a literal `%E9%A1%B9%E7%9B%AE`
+// and realpathSync threw ENOENT before a single file was read. fileURLToPath
+// decodes it. The German docs never noticed because no such path was in use.
+const ROOT = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
 const CHANGELOG = realpathSync(join(ROOT, 'docs/_docs/changelog.md'));
 
 function walk(p, out = []) {
@@ -181,7 +186,7 @@ const split = t => t
   // letter would. A sentence can also open on a digit ("2.13 also takes...")
   // or on `easywall` — the product's name is lowercase by design, not a
   // typo a capital-letter rule should be forgiving of.
-  .split(/(?<=[.!?])["')\]*]*\s+(?=[A-Z0-9(`"'—*]|easywall\b)/)
+  .split(/(?<=[.!?])["')\]*]*\s+(?=[A-Z0-9(`"'—*]|easywall\b)|(?<=[。！？])["'”’）】」』]*\s*/)
   .map(s => s.trim())
   .filter(Boolean);
 

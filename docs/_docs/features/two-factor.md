@@ -1,152 +1,110 @@
 ---
 layout: default
-title: Second Factor
-description: TOTP, passkeys and eight one-time recovery codes for the single account — and the way back when every factor is gone.
+title: 第二因子
+description: 单个账户的 TOTP、通行密钥和八个一次性恢复码 —— 以及所有因子都失去时的回去之路。
 ---
 
-# Second Factor
+# 第二因子
 
-A stolen password alone no longer opens the firewall.
+单靠一个被窃取的密码，已经打不开这台防火墙。
 
-## Switching it on
+## 开启
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/password" ext="png"
-     alt="The whole Password page with no factor enrolled: the change-password form, a Second factor card marked Off, and a Passkeys card reading No passkeys enrolled yet." %}
-  <figcaption>Everyone starts here — both cards empty. Either one satisfies the requirement; neither is a step toward the other.</figcaption>
+     alt="尚未注册任何因子时的完整密码页面：修改密码表单、标记为关闭的第二因子卡片，以及一张写着「尚未注册通行密钥」的通行密钥卡片。" %}
+  <figcaption>所有人都是从这里开始的 —— 两张卡片都是空的。两者之一即可满足要求；谁也不通向另一个。</figcaption>
 </figure>
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/two-factor-setup" ext="png"
-     alt="The Password page during setup, under an amber Set up a second factor to continue banner: a QR code, the typed key, the server's own clock, and a field for the six-digit code." %}
-  <figcaption>Nothing is saved until the code in step 3 is entered — a phone that never scanned this screen leaves no trace.</figcaption>
+     alt="设置过程中的密码页面，上方是一条琥珀色的「设置第二因子以继续」横幅：一个二维码、需手工输入的密钥、服务器自己的时钟，以及一个六位验证码输入框。" %}
+  <figcaption>在第 3 步的验证码输入之前，什么都不会保存 —— 一台从未扫描过这个页面的手机不会留下任何痕迹。</figcaption>
 </figure>
 
-On the **Password** page, under **Second factor**:
+在**密码**页面，**第二因子**之下：
 
-| Step | What happens |
+| 步骤 | 会发生什么 |
 |---|---|
-| 1 | Enter your current password and start setup. A QR code and a typed key appear — nothing is saved yet. |
-| 2 | Scan the QR code with an authenticator app, or type the key in by hand. |
-| 3 | Enter the six-digit code the app shows. Only now is the secret written, together with eight recovery codes. |
+| 1 | 输入当前密码并开始设置。出现一个二维码和一个需手工输入的密钥 —— 此时还没有保存任何东西。 |
+| 2 | 用身份验证器应用扫描二维码，或者手工输入密钥。 |
+| 3 | 输入应用显示的六位验证码。到了这一步，密钥才会被写入，同时写入八个恢复码。 |
 
-It can also be switched on during the first run, before this page exists to switch it on from — see [First Run]({{ '/docs/installation/first-run/' | relative_url }}).
+它也可以在首次运行时开启，那时这个页面还不存在、无法从这里开启 —— 见[首次运行]({{ '/docs/installation/first-run/' | relative_url }})。
 
-## Passkeys
+## 通行密钥
 
-The other second factor: a device instead of six digits, and nothing to type.
-**Password → Passkeys → Add a passkey**, as many as you like — losing one phone
-should not lose the account. Name it and re-enter your password: enrolling a
-factor is a credential change, and every one of them on that page asks.
+另一种第二因子：用设备代替六位数字，不需要输入任何东西。**密码 → 通行密钥 → 添加通行密钥**，想加多少个都行 —— 丢一部手机不应该丢掉账户。给它起个名字并重新输入密码：注册因子属于凭据变更，而这个页面上的每一次凭据变更都会这样要求。
 
-Two things have to be true first. If either is not, there is no button to press
-— the card says which one is in the way instead of failing in the browser:
+有两件事必须先成立。只要缺一件，就没有按钮可按 —— 卡片会说明是哪一件挡着，而不是让它在浏览器里失败：
 
-| Precondition | Why |
+| 前提 | 原因 |
 |---|---|
-| `hostname` in [`[tls]`]({{ '/docs/configuration/' | relative_url }}#tls) | WebAuthn's Relying Party ID must be a registrable name. An installation reached at `https://192.168.1.10:12227` has none |
-| A certificate the browser trusts | Chrome refuses WebAuthn outright on a certificate error, and the pair easywall generates for itself is one. ACME, in that same `[tls]` table, fixes it |
-| The browser reaching easywall directly | A passkey is bound to the exact origin the browser used, and easywall expects its own address and port. Through a [reverse proxy]({{ '/docs/installation/reverse-proxy/' | relative_url }}) the two differ and every ceremony is refused — giving easywall a trusted certificate behind the proxy satisfies the row above without fixing this one |
+| [`[tls]`]({{ '/docs/configuration/' | relative_url }}#tls) 中的 `hostname` | WebAuthn 的依赖方 ID 必须是一个可注册的名字。通过 `https://192.168.1.10:12227` 访问的安装没有这样的名字 |
+| 浏览器信任的证书 | 证书一报错，Chrome 会直接拒绝 WebAuthn，而 easywall 为自己生成的那一对正属此类。同一个 `[tls]` 表里的 ACME 可以解决它 |
+| 浏览器直接访问 easywall | 通行密钥绑定到浏览器实际使用的确切源（origin），而 easywall 期待的是它自己的地址和端口。经由[反向代理]({{ '/docs/installation/reverse-proxy/' | relative_url }})时两者不同，每一次验证都会被拒绝 —— 在代理后面给 easywall 一张受信任的证书能满足上一行，却解决不了这一行 |
 
-A password manager's injected scripts are refused by the page's content
-security policy, which fills the browser console on this page and is the policy
-working rather than a fault. easywall's own script carries the nonce; nothing
-injected does.
+密码管理器注入的脚本会被页面的内容安全策略拒绝，这会在这个页面的浏览器控制台里刷出报错 —— 那是策略在起作用，不是故障。easywall 自己的脚本带有 nonce，注入的东西没有。
 
-A passkey satisfies the requirement on its own. That is also the trap in [the
-way back](#the-way-back): it is a third place a factor lives, and not the file
-the other two are in.
+通行密钥自身即可满足要求。这也正是[回去之路](#the-way-back)里的陷阱：它是因子存放的第三个地方，而且不在另外两者所在的那个文件里。
 
-## The eight codes
+## 八个恢复码
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/two-factor-codes" ext="png"
-     alt="The Password page after setup: the Second factor card now On with 8 of 8 codes left, and a Recovery codes card showing all eight, once." %}
-  <figcaption>This screen shows all eight; reloading afterward reveals only how many are left, never the codes.</figcaption>
+     alt="设置完成后的密码页面：第二因子卡片现在为开启，剩余 8/8 个恢复码，还有一张恢复码卡片一次性显示全部八个。" %}
+  <figcaption>这个页面显示全部八个；之后重新加载只会显示还剩几个，绝不会再显示这些码。</figcaption>
 </figure>
 
-The eight recovery codes are shown once, on the same page, right after the
-setup succeeds — **these will not be shown again**. There is nothing to
-download; write them down or put them in a password manager before leaving
-this page. There is no page or link that can produce them a second time.
-Only losing the phone and using one, or generating a fresh set, brings the
-count back into view. Reloading the page afterwards shows that a factor is
-enrolled, and how many of the eight are left, and nothing more.
+八个恢复码只在设置成功后，在同一个页面上显示一次 —— **它们不会再次显示**。没有可下载的东西；在离开这个页面之前，把它们抄下来或存进密码管理器。没有任何页面或链接能第二次生成它们。只有丢了手机进而用掉一个，或者生成一套新的，才会让计数重新出现在视野里。之后再重新加载页面，只会显示已经注册了一个因子、八个里还剩几个，仅此而已。
 
-**Password → Second factor → New codes** issues eight fresh ones and
-invalidates every old one, at any time — not only after losing the phone.
+**密码 → 第二因子 → 生成新恢复码**会在任何时候签发八个新的，并使所有旧的失效 —— 不只是丢了手机之后。
 
-## Signing in
+## 登录
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/two-factor-verify" ext="png"
-     alt="The second-step sign-in page with no passkey enrolled: one field for a six-digit or recovery code, and no sign of whether the password was right." %}
-  <figcaption>Three wrong codes return you to the sign-in form — with no hint which one you got wrong.</figcaption>
+     alt="未注册通行密钥时的第二步登录页面：一个用于六位验证码或恢复码的输入框，完全看不出密码是否正确。" %}
+  <figcaption>连错三个验证码就会回到登录表单 —— 不提示你错在哪一个。</figcaption>
 </figure>
 
-| Step | What happens |
+| 步骤 | 会发生什么 |
 |---|---|
-| 1 | Username and password, as before |
-| 2 | Six digits from your authenticator app, **or** one of the eight recovery codes in the same field — **or** the passkey button, when one is enrolled and offerable |
+| 1 | 和以前一样，用户名与密码 |
+| 2 | 身份验证器应用上的六位数字，**或者**同一个输入框里八个恢复码之一 —— **或者**通行密钥按钮，前提是已注册一个且它可被提供 |
 
-Three wrong codes and you are back at the sign-in form. Nothing tells you whether
-the password or the code was the problem, and nothing counts down for you.
+连错三个验证码，你就会回到登录表单。没有任何信息告诉你是密码错了还是验证码错了，也没有任何倒计时给你看。
 
-The password step ends in that second screen and nowhere else. With a factor
-enrolled, entering the right password issues no session at all — only an
-intermediate state bound to the credentials it was issued under. Changing the
-password ends any half-login still waiting at the second step, the same way it
-ends a finished one.
+密码这一步只以第二个页面告终，别无去处。注册了因子之后，输入正确的密码根本不会签发会话 —— 只会签发一个绑定到它签发时所依据凭据的中间状态。修改密码会终止任何仍停在第二步的半截登录，就像它终止一个已完成的登录一样。
 
-## The clock
+## 时钟
 
-The setup page shows the server's own clock, in words, next to the QR code —
-not the sign-in page, deliberately. TOTP has no shared secret exchange at the
-moment you type a code. It only works because both sides compute the same
-thing from the same secret and the same 30-second time step. Setup is the one
-moment an operator can still compare the phone's clock against the server's
-before anything is committed. It is also the moment a mismatch is cheapest to
-fix — nothing is enrolled yet.
+设置页面会在二维码旁边用文字显示服务器自己的时钟 —— 有意不放在登录页面。TOTP 在你输入验证码的那一刻并不交换共享密钥。它能工作，只是因为有同一密钥、同样 30 秒时间步的两边算出了同样的东西。设置是操作者还能在任何东西落定之前，把手机的时钟和服务器对比一次的唯一时刻。也是修正不一致代价最小的时刻 —— 还没有注册任何东西。
 
-If the code you type at setup is right but does not match the current time
-step, that is the diagnosis. The app and the server disagree about the time,
-not about the secret. The page says which way and by roughly how much. A
-phone with the correct time and a server with the wrong one looks, from the
-six digits alone, exactly like a mistyped key. Fixing the wrong thing is how
-people lock themselves out of their own firewall.
+如果你在设置时输入的验证码是对的，却对不上当前的时间步，那就是诊断结论。应用和服务器在时间上不一致，而不是在密钥上。页面会说明偏哪个方向、大约偏多少。时钟正确的手机配上时钟错误的服务器，仅从六位数字看，和输错了密钥完全一样。修错了地方，正是人们把自己锁在自己防火墙外面的原因。
 
-## The way back
+## 回去之路 {#the-way-back}
 
-### If you lose the phone
+### 丢了手机
 
-Use a recovery code. It signs you in once and is then gone. The interface says
-how many are left. **Password → Second factor → New codes** issues eight
-fresh ones and invalidates every old one.
+用一个恢复码。它让你登录一次，然后就没了。界面会说明还剩几个。**密码 → 第二因子 → 生成新恢复码**会签发八个新的，并使所有旧的失效。
 
-### If you lose every factor
+### 所有因子都丢失
 
-Three things hold a second factor, not two, and they are not all in one file.
-Clearing only the first two leaves the passkey standing, and `/login/verify`
-still asks for it:
+存放第二因子的地方有三处，不是两处，而且它们并不都在同一个文件里。只清掉前两处，通行密钥依然存在，`/login/verify` 仍然会要求它：
 
-| Clear | Where |
+| 清除 | 位置 |
 |---|---|
-| `totp_secret    = ""` | `web.toml` on the host |
-| `recovery_codes = []` | `web.toml` on the host |
-| delete `passkeys.json` | `web/` in your `data_dir` — `/var/lib/easywall/web` unless you changed it |
+| `totp_secret    = ""` | 主机上的 `web.toml` |
+| `recovery_codes = []` | 主机上的 `web.toml` |
+| 删除 `passkeys.json` | `data_dir` 中的 `web/` —— 除非你改过，否则是 `/var/lib/easywall/web` |
 
-Restart `easywall-web`. The password alone signs you in again — onto
-**Password → Second factor**, where you enrol a new one before the rest of the
-interface opens. Clearing all three is the way back in, not a way to run
-without a factor. There is no reset link: this interface sends no mail and
-reaches no outside service.
+重启 `easywall-web`。单靠密码就能重新登录 —— 直接进入**密码 → 第二因子**，在界面的其余部分打开之前，你在这里注册一个新的。清掉全部三处是回去的办法，而不是无因子运行的办法。没有重置链接：这个界面不发邮件，也不访问任何外部服务。
 
-Every step above — enrolling, signing in with a code, using a recovery code,
-issuing new ones, a wrong code, or a factor switched off — is recorded. See
-[the thirteen login events]({{ '/docs/features/audit-log/' | relative_url }}#the-thirteen-login-events).
+上面每一步 —— 注册、用验证码登录、使用恢复码、签发新的、验证码错误，或者切换掉一个因子 —— 都会被记录。见[十三个登录事件]({{ '/docs/features/audit-log/' | relative_url }}#the-thirteen-login-events)。
 
 ---
 
-**Next:** [Security]({{ '/docs/security/' | relative_url }}) ·
-[First Run]({{ '/docs/installation/first-run/' | relative_url }}) ·
-[Audit Log]({{ '/docs/features/audit-log/' | relative_url }})
+**下一步：**[安全]({{ '/docs/security/' | relative_url }}) ·
+[首次运行]({{ '/docs/installation/first-run/' | relative_url }}) ·
+[审计日志]({{ '/docs/features/audit-log/' | relative_url }})

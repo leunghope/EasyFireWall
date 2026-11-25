@@ -1,136 +1,102 @@
 ---
 layout: default
-title: Applying Rules
-description: Nothing you edit reaches the firewall until you apply it — and an apply undoes itself unless you confirm.
+title: 应用规则
+description: 你编辑的任何内容在应用之前都不会到达防火墙 —— 而一次应用若未确认就会自行撤销。
 ---
 
-# Applying Rules
+# 应用规则
 
-Every other page **stages**. This one is where staged rules become the running
-firewall, and it is the only page that changes what the kernel is doing.
+其他每个页面都只做**暂存**。只有这个页面把暂存的规则变成正在运行的防火墙，也只有它会改变内核当下的行为。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/apply" ext="png"
-     alt="The Apply Rules page: a reachability verdict above a list of staged changes grouped by rule set and options, with an Apply now button beside a card explaining the confirmation window." %}
-  <figcaption>The verdict is about a new connection — the one this page is loaded over keeps working regardless.</figcaption>
+     alt="应用规则页面：一个可达性判定显示在暂存更改列表上方，更改按规则集和选项分组，旁边是「立即应用」按钮，以及一张解释确认窗口的说明卡片。" %}
+  <figcaption>判定针对的是一条新连接 —— 加载这个页面的那条连接无论如何都会继续工作。</figcaption>
 </figure>
 
-## The three steps
+## 三个步骤
 
 {% include themed-figure.html base="/assets/diagrams/apply-flow" ext="svg"
-   alt="State machine: editing leads to Staged, applying leads to Live, confirming within the window leads to Confirmed, and letting the window expire leads to Rolled back, from where the staged edits are still available." %}
+   alt="状态机：编辑后进入「暂存」；应用后进入「已生效」；在窗口内确认后进入「已确认」；窗口过期则进入「已回滚」，而暂存的编辑仍可从这里取用。" %}
 
 | | | |
 |---|---|---|
-| 1 | **Rules go live** | The staged set is pushed to the kernel and starts filtering immediately |
-| 2 | **You check** | Open a *second* connection — keep the current one — and confirm SSH and your services still answer |
-| 3 | **Confirm, or do nothing** | Confirming keeps the new rules. Doing nothing restores the previous set when the window closes |
+| 1 | **规则立即生效** | 暂存的那一组被推送到内核，并立刻开始过滤 |
+| 2 | **你去检查** | 另开**第二条**连接 —— 保留当前这条 —— 确认 SSH 和你的服务仍有响应 |
+| 3 | **确认，或者什么都不做** | 确认会保留新规则。什么都不做，窗口关闭时会恢复先前那一组 |
 
-**Doing nothing is the recovery.** Not confirming is what brings the old rules
-back — whether you decide against the change, or you can no longer reach this
-page at all. The window is 120 seconds by default, [configurable]({{ '/docs/features/system-settings/' | relative_url }})
-from 10 to 3600.
+**什么都不做就是恢复手段。** 不确认才会把旧规则带回来 —— 无论你是决定不要这次改动，还是你已经完全访问不到这个页面。窗口默认 120 秒，可在 10 到 3600 之间[配置]({{ '/docs/features/system-settings/' | relative_url }})。
 
-## What changes, before you press Apply
+## 按下「应用」之前，什么会改变
 
-The page lists every difference between the staged set and the running one —
-ports, addresses, forwards, custom rules — and the configuration changes that go
-in with them. An options or network change is a pending change like any other:
-it is written to the daemon's config immediately and takes effect at the next
-apply. A rollback takes it out of the kernel with the rules and leaves it on this
-list. Until 2.10 this page said there was nothing to apply while the options
-page was telling you to.
+页面会列出暂存组与运行组之间的每一处差异 —— 端口、地址、转发、自定义规则 —— 以及随之一起写入的配置变更。选项或网络设置的更改和其他更改一样是待处理的更改：它会立刻写入守护进程的配置，并在下一次应用时生效。回滚会把它连同规则一起从内核里撤下，但把它留在这个列表上。在 2.10 之前，这个页面说没有可应用的内容，而选项页面却在让你去应用。
 
-Add and remove are `+`, `-` and `~` in the left column and carry no colour. A
-new blocklist entry is not good news, and a removed port is not a failure.
-Colour on this page means firewall state, and it belongs to the line above the
-list.
+新增与移除在左列用 `+`、`-` 和 `~` 表示，不带颜色。新加一条拦截列表条目不是什么好消息，删掉一个端口也不代表失败。这个页面上的颜色只表示防火墙状态，它属于列表上方那一行。
 
-## Whether it still admits a new connection from you
+## 它是否仍然接受来自你的新连接
 
-Above the list sits one line naming the address your request came from and the
-port this interface answers on, with one of three verdicts:
+列表上方有一行，写明你的请求来自哪个地址，以及这个界面在哪个端口应答，并给出三种判定之一：
 
 | | |
 |---|---|
-| **reachable** | a new connection from that address is accepted by the staged set |
-| **blocks new connections** | it is not — the Apply button becomes *Apply anyway*, and the window is what catches you |
-| **cannot tell** | something in the path cannot be decided from here, and the line says which |
+| **可达** | 来自该地址的新连接会被暂存的那一组接受 |
+| **会阻止新连接** | 不会 —— 应用按钮变成*仍然应用*，而兜住你的正是确认窗口 |
+| **无法判断** | 这条路径上有东西无法从这里判定，该行会说明是哪一个 |
 
-**It is about a new connection, and that is the point.** Applying rules flushes
-and rebuilds the table; it does not touch conntrack. The connection your browser
-already has stays `ESTABLISHED`, matches the established/related rule, and keeps
-working. So this page can go on answering while the firewall admits nobody new.
-Confirming from it would confirm a lockout — open a second connection and check
-there, exactly as step 2 says.
+**它针对的是新连接，而这正是关键。** 应用规则会清空并重建表；它不碰 conntrack。你浏览器已经持有的那条连接保持 `ESTABLISHED`，命中已建立/相关规则，继续工作。所以即使防火墙不放任何人进来，这个页面也照样能应答。从这个页面确认，等于确认一次把自己锁在外面的应用 —— 另开一条连接去那边检查，正如第 2 步所说。
 
-*Cannot tell* is not a hedge. Four things are not knowable from the web
-interface, and each says so in its own words rather than guessing:
+*无法判断*不是含糊其辞。有四件事从 Web 界面无从得知，每一件都用自己的话说明，而不是猜：
 
-- The bogon filter matches on which interface a packet arrives at, and nothing
-  in the web interface knows that.
-- An auto-detected Docker bridge network is settled in the core at apply time,
-  which is also not knowable from here. A network you named yourself in the
-  Docker settings is different, and gets a plain **reachable**.
-- Custom rules are raw nftables and are appended after everything else.
-- Behind a [trusted proxy]({{ '/docs/installation/reverse-proxy/' | relative_url }}),
-  your browser reaches the proxy's port, not this interface's, and the request
-  does not say which.
+- 无效地址过滤是根据数据包从哪个接口到达来匹配的，而 Web 界面里没有任何东西知道这一点。
+- 自动探测到的 Docker 网桥网络要到应用时才在 core 里定下来，这同样无法从这里得知。你自己在 Docker 设置里指定的网络不一样，会得到一个明确的**可达**。
+- 自定义规则是原始 nftables，被追加在所有其他内容之后。
+- 在[可信代理]({{ '/docs/installation/reverse-proxy/' | relative_url }})后面，你的浏览器到达的是代理的端口，不是这个界面的端口，而请求本身不会说明是哪一个。
 
-A wrong *blocks new connections* would cost the trust the true one needs.
+一个错误的*会阻止新连接*会赔掉正确判定所需要的那份信任。
 
-## What the status card says
+## 状态卡片怎么说
 
-| State | Meaning | What to do |
+| 状态 | 含义 | 该做什么 |
 |---|---|---|
-| **Idle** | the running firewall matches what is staged | nothing |
-| **Staged changes** | you have edits the firewall does not have yet | apply them |
-| **Waiting for confirmation** | live but unconfirmed, the window is open | check a second connection, then confirm |
-| **Confirmed** | the rules stay; shown until the next apply | nothing |
-| **Rolled back** | the window closed unconfirmed; the previous rules and options are back — on a first apply that means the firewall is off again, because there were none | your staged edits are still there — review and apply again |
+| **空闲** | 正在运行的防火墙与暂存内容一致 | 什么都不做 |
+| **有暂存更改** | 你有防火墙尚未持有的编辑 | 应用它们 |
+| **等待确认** | 已生效但未确认，窗口开着 | 检查第二条连接，然后确认 |
+| **已确认** | 规则保留；显示到下一次应用之前 | 什么都不做 |
+| **已回滚** | 窗口在未确认的情况下关闭；先前的规则和选项回来了 —— 若这是首次应用，意味着防火墙又关掉了，因为原先没有任何规则 | 你暂存的编辑还在 —— 检查后重新应用 |
 
-A rollback loses nothing you staged. It undoes what went **live**, and the edits
-that caused it are still on their pages.
+回滚不会丢掉你暂存的任何东西。它撤销的是**已经生效**的部分，导致回滚的那些编辑仍然留在各自的页面上。
 
-## While the window is open
+## 窗口打开期间
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/apply-window" ext="png"
-     alt="The apply screen with the window open: a large mm:ss countdown, Confirm and Roll back now side by side, and a card listing what just went live." %}
-  <figcaption>The countdown is this page's whole promise, running instead of described.</figcaption>
+     alt="窗口打开时的应用页面：一个大的 mm:ss 倒计时，「确认」与「立即回滚」并排，以及一张列出刚刚生效内容的卡片。" %}
+  <figcaption>倒计时就是这个页面的全部承诺，它在运行，而不是被描述。</figcaption>
 </figure>
 
-- The countdown lives in the core daemon, not in your browser. Closing the tab,
-  losing the connection or restarting `easywall-web` confirms nothing.
-- Stopping `easywall-core` counts as not confirming: the rules roll back before it
-  exits. A restart inside those two minutes is an ordinary event, and it used to
-  leave the unconfirmed set in place with nothing left to undo it.
-- If it dies instead — killed, out of memory, a power cut — the rollback happens
-  at its next start, before anything is restored.
-- A second apply is refused while one is running, with a message rather than a
-  silent second timer.
-- The window keeps the length it started with. Changing the duration mid-window
-  affects the next apply.
+- 倒计时驻留在 core 守护进程里，不在你的浏览器里。关掉标签页、断网或重启 `easywall-web` 都不会确认任何东西。
+- 停掉 `easywall-core` 等同于未确认：规则会在它退出之前回滚。在这两分钟里重启是平常事，而在以前，它会把未确认的那一组留在原地，且再没有任何东西能撤销它。
+- 如果它是自己死掉的 —— 被 kill、内存耗尽、断电 —— 回滚会在它下次启动时、在恢复任何东西之前发生。
+- 已有一次应用在跑时，第二次应用会被拒绝，并给出提示，而不是悄悄再起一个计时器。
+- 窗口保持它开始时的长度。在窗口中途改时长，只影响下一次应用。
 
-## When the acceptance window is switched off
+## 确认窗口被关掉时
 
-An apply is then final and there is no automatic way back. That setting exists for
-machines you can physically reach — see
-[system settings]({{ '/docs/features/system-settings/' | relative_url }}).
+此时一次应用就是终局，没有自动的回头路。这个设置是给那些你能亲手够到的机器用的 —— 见[系统设置]({{ '/docs/features/system-settings/' | relative_url }})。
 
-## When it does not work
+## 不生效时
 
-| Symptom | Cause | Check |
+| 现象 | 原因 | 检查 |
 |---|---|---|
-| "Nothing staged to apply" | you saved nothing since the last apply | the [dashboard]({{ '/docs/features/dashboard/' | relative_url }}) says whether changes are pending |
-| Applied, then everything came back as it was | the window closed without a confirmation | the [audit log]({{ '/docs/features/audit-log/' | relative_url }}) shows `apply_rolledback`; the detail says why: `timeout`, `cancelled by operator`, `panic mode` or `core stopped` |
-| The apply failed outright | the kernel refused a rule — usually a [custom rule]({{ '/docs/features/custom-rules/' | relative_url }}) | `journalctl -u easywall-core` carries nft's own message |
-| `rollback_failed` in the log | the new rules did not take **and** the old ones did not come back | the worst outcome there is; check the daemon's log and the running table with `nft list table inet easywall` |
-| Your SSH dropped right after applying | that is the design | do nothing; the window restores the previous rules, and on a first apply it takes the firewall back down altogether — the audit log then reads `boot_not_configured` |
-| "Another change is being written" | one window is open, or a [feed]({{ '/docs/features/feeds/' | relative_url }}) refresh is loading | confirm it, or wait for it to expire; after a refresh, press **Apply now** again |
+| 「没有可应用的暂存更改」 | 自上次应用以来你什么都没保存 | [仪表盘]({{ '/docs/features/dashboard/' | relative_url }})会说明是否有待处理的更改 |
+| 应用之后，一切都变回了原样 | 窗口在未确认的情况下关闭了 | [审计日志]({{ '/docs/features/audit-log/' | relative_url }})里有 `apply_rolledback`；详情会说明原因：`timeout`、`cancelled by operator`、`panic mode` 或 `core stopped` |
+| 应用直接失败 | 内核拒绝了某条规则 —— 通常是[自定义规则]({{ '/docs/features/custom-rules/' | relative_url }}) | `journalctl -u easywall-core` 里有 nft 自己的消息 |
+| 日志里出现 `rollback_failed` | 新规则没生效，**且**旧规则也没回来 | 这是最糟的结果；检查守护进程日志和正在运行的表：`nft list table inet easywall` |
+| 应用刚结束你的 SSH 就断了 | 这就是设计 | 什么都别做；窗口会恢复先前的规则，而首次应用时它会把防火墙整个撤下 —— 审计日志随后显示 `boot_not_configured` |
+| 「另一项更改正在写入」 | 有一个窗口开着，或者某个[列表源]({{ '/docs/features/feeds/' | relative_url }})刷新正在加载 | 确认它，或等它过期；刷新之后，再按一次**立即应用** |
 
 ---
 
-**Next:** [Dashboard]({{ '/docs/features/dashboard/' | relative_url }}) ·
-[System settings]({{ '/docs/features/system-settings/' | relative_url }}) ·
-[Architecture]({{ '/docs/architecture/' | relative_url }})
+**下一步：** [仪表盘]({{ '/docs/features/dashboard/' | relative_url }}) ·
+[系统设置]({{ '/docs/features/system-settings/' | relative_url }}) ·
+[架构]({{ '/docs/architecture/' | relative_url }})

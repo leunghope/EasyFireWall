@@ -1,87 +1,74 @@
 ---
 layout: default
-title: Roadmap
-description: Thirteen releases, ordered by exposure — what it quietly does not do first, then maintenance, then reach.
+title: 路线图
+description: 十三个版本，按暴露程度排序——先处理它悄悄没做的事，再是维护，最后是触达范围。
 ---
 
-# Roadmap
+# 路线图
 
-Correctness first: a firewall that quietly does less than it says is worse than
-one that does less and says so. What follows is planned in this order, not
-promised in it, and corrected when something changes. What already shipped is in
-the [Changelog]({{ '/docs/changelog/' | relative_url }}).
+正确性优先：悄悄少做事的防火墙，比少做事但如实说明的更糟。以下内容按这个顺序规划，但不是承诺，出现变化时会修正。已经发布的版本见[更新日志]({{ '/docs/changelog/' | relative_url }})。
 
-**Ordering principle: by exposure.** A gap in what the firewall enforces comes
-first, then what lets you maintain it, then what reaches further:
+**排序原则：按暴露程度。** 防火墙实际执行能力的缺口排在最前，其次是让人能维护它的能力，最后是向外延伸的能力：
 
 ```
-Say what it does         2.30  What it counts can be asked for
+说明它做什么            2.30  统计到的内容可以查询
 
-Be able to maintain it   2.31  Every entry has a why and an until
-                         2.32  Whoever knocks gets locked out
+便于维护                2.31  每条条目都有原因与期限
+                        2.32  敲门者会被锁定
 
-Reach further            2.33  One package, four formats
-                         2.34  Moving off the firewall already running
-                         2.35  Updates arrive on their own
-                         2.36  Every rule knows its interface
-                         2.37  Outbound traffic
-                         2.38  With a keyboard and with a screen reader
-                         2.39  Eight languages
-                         2.40  A failed passkey says which origin it expected
-                         2.41  Feeds know their ports
-                         3.0   Reachable from outside
+向外延伸                2.33  一个包，四种格式
+                        2.34  迁离正在运行的防火墙
+                        2.35  更新自动到达
+                        2.36  每条规则都知道自己的接口
+                        2.37  出站流量
+                        2.38  可用键盘，也可用屏幕阅读器
+                        2.39  八种语言
+                        2.40  通行密钥失败时说明期待哪个来源
+                        2.41  列表源知道自己的端口
+                        3.0   可以从外部访问
 ```
 
-One theme per release, sayable in one sentence — the changelog heading then
-writes itself. A model change travels with the feature that justifies it, never
-earlier as an end in itself and never twice.
+每个版本一个主题，能用一句话说清——更新日志的标题于是自己就写出来了。模型改动与使它有理由的功能同行，绝不提前作为目的本身，也绝不重复。
 
-| Version | What | Why it comes when it does |
+| 版本 | 内容 | 为什么安排在这个位置 |
 |---|---|---|
-| **2.30** | **What it counts can be asked for** — a metrics endpoint | The kernel counters have existed since 2.15 and live only in the interface, so an operator with Grafana cannot see the thing the release was for. Its own entry rather than folded into 2.20, because a scrape format is a second public interface with a compatibility promise — the reasoning that makes 3.0 a major. `DESIGN.md`'s Known Gaps names the missing data-visualisation language; this release either brings one or states plainly that it does not, rather than that decision arriving mid-build |
-| **2.31** | **Every entry has a why and an until** — blocklist entries carry a comment and an expiry | The textarea becomes a table; pasting a list of addresses still works, folded underneath it |
-| **2.32** | **Whoever knocks gets locked out** — repeated knocking on closed ports blocks itself, in an nftables set with a timeout, no userspace parser involved | Substitutes for reading `journald`/`auth.log` as root. A named set that fail2ban or CrowdSec can write into covers the credential case without turning the root process into a log parser — and the CrowdSec bouncer's `set-only` mode, which 2.23 deliberately does not document. **Closed ports answer**: the default policy gains `reject` — a TCP reset, ICMP port-unreachable otherwise, rate-limited, dropping above the limit — beside today's silent `drop`. A silent drop makes a misconfiguration look like a hang: a 2.23 production host with an AAAA record and IPv4-only mail ports left mail clients waiting for a timeout instead of falling back to IPv4. Stealth buys little on a host that answers on its open ports. The same release, because it decides what a closed port tells whoever knocks on it |
-| **2.33** | **One package, four formats** — `.deb`, `.rpm`, Arch and Alpine from one description, with `debian/` replaced by an nfpm manifest rather than joined by one | `requirements.md` says of Arch, Fedora and openSUSE that they *should work but are not in CI*: they get a tarball and write the service units themselves. `release.yml` refuses a second packaging definition in as many words — *two definitions of one artefact is how a package comes to contain no binaries* — and only a replacement honours that. The nine paths with their owners and modes are declared once and **proven by four install-verify jobs, not asserted**. Alpine is taken deliberately, knowing it means OpenRC and therefore a second init class to keep tested |
-| **2.34** | **Moving off the firewall already running** — read `nft list ruleset` and ufw's rules, and offer them as a staged set | The only entry on this list that removes an *adoption* barrier rather than adding a feature. Whoever already has a firewall copies it out by hand today. After the packaging, because an operator installs first and migrates second |
-| **2.35** | **Updates arrive on their own** — a signed APT and RPM repository, so `apt upgrade` and `dnf upgrade` find easywall | The documented install is `wget` and `dpkg -i`, so an operator learns about 2.16 only because the interface says so and installs it by hand. After 2.33, because a repository serves finished packages and not the other way round. It is also this project's first promise that means **operation** rather than code: a signing key to keep for years, and a URL that must not move |
-| **2.36** | **Every rule knows its interface** — a rule can name the interface it applies to | The ports page says of itself that every rule *applies to all interfaces*, so a host with a LAN and an uplink cannot express what it means. Before outbound rather than with it: `oifname` is the same dimension, and the rule model should gain it once and be used twice. Spec §5 of `docs-tech/specs/2026-09-12-2.19-what-it-passes-on-it-also-filters.md` is the write-up |
-| **2.37** | **Outbound traffic** — what the server may send out becomes configurable, `open` (today's behaviour) or `allowlist` | The output chain has policy `ACCEPT` and not one rule today. Highest lockout risk on this list; gets its own acceptance-window round and its own veth proof |
-| **2.38** | **With a keyboard and with a screen reader** — one audited pass over every template | `aria-live` appears exactly **once** in the whole interface and `prefers-reduced-motion` three times. Not a feature; catching up, the way 2.16 was. Before the eight languages on purpose — both passes touch every template, and doing this second means re-checking eight locales |
-| **2.39** | **Eight languages** — Spanish, Portuguese (BR), Italian, Dutch, Polish, Russian, Chinese (Simplified), Japanese | One pass, once the string set is stable. No RTL: that is a design-system change, not a translation. `fr` sits at 471 of 620 keys (76.0%) while `en` and `de` hold exact parity; finishing it is part of this pass, not a separate errand |
-| **2.40** | **A failed passkey says which origin it expected** — the ceremony names the mismatch instead of logging "did not verify" | `publicOrigin()` builds the expected origin from this process's own port, so a browser arriving through a terminating reverse proxy reports the proxy's origin and every assertion is refused. [Reverse proxy]({{ '/docs/installation/reverse-proxy/' | relative_url }}) already rules that passkeys do not work through one, and the refusal is correct — but `passkeyUnavailableReason` reaches it by asking about the **certificate**, and an operator who gives the process a real certificate behind the proxy clears that reason and enables a button that cannot succeed. Both origins are known at `ValidateLogin`, so the failure can name itself. Reported from a traefik deployment where the backend certificate was about to be fixed for unrelated and good reasons. It is not a knob: an operator assertion that a proxy terminates in front would disable the certificate check and leave the origin untouched — a safety check switched off in exchange for nothing |
-| **2.41** | **Feeds know their ports** — a per-feed port scope: all ports, not web, or these ports | blocklist.de and CINS report addresses seen attacking anything, and today's feeds drop them everywhere, web ports included — a legitimate link-preview proxy or search crawler among them. The allowlist recipe in [feeds.md]({{ '/docs/features/feeds/' | relative_url }}) covers one address at a time; this covers the shape of the problem |
-| **3.0** | **Reachable from outside** — a REST API with token auth | A major version because an API is a second public interface and a compatibility promise easywall has not made before |
+| **2.30** | **统计到的内容可以查询**——指标端点 | 内核计数器自 2.15 起就存在，但只出现在界面里，因此用 Grafana 的运维人员看不到这个版本要提供的东西。单独列为一条，而不是并进 2.20，因为抓取格式是第二个带兼容性承诺的公开接口——正是这条理由让 3.0 成为大版本。`DESIGN.md` 的 Known Gaps 一节指出缺少数据可视化语言；本版本要么补上一种，要么明确说明不补，而不是让这个决定在开发中途才出现 |
+| **2.31** | **每条条目都有原因与期限**——拦截列表条目带注释与到期时间 | 文本域变成表格；粘贴地址列表仍然可用，收在表格下方 |
+| **2.32** | **敲门者会被锁定**——对关闭端口的反复敲门会封禁自己，实现为一个带超时的 nftables 集合，不涉及用户空间解析器 | 取代以 root 身份读 `journald`/`auth.log` 的做法。一个 fail2ban 或 CrowdSec 可写入的具名集合覆盖凭据场景，而无须把 root 进程变成日志解析器——也包括 CrowdSec bouncer 的 `set-only` 模式，2.23 有意没有把它写进文档。**关闭端口会回应**：默认策略增加 `reject`——TCP 回 reset，其他协议回 ICMP port-unreachable，受速率限制，超过限额即丢弃——与今天静默的 `drop` 并存。静默丢弃会让配置错误看起来像卡死：一台 2.23 生产主机有 AAAA 记录而邮件端口只有 IPv4，导致邮件客户端一直等到超时，而不是回退到 IPv4。在一台开放端口会回应的主机上，隐蔽性收益甚微。放在同一版本，因为它决定关闭端口如何回应敲门者 |
+| **2.33** | **一个包，四种格式**——用一份描述生成 `.deb`、`.rpm`、Arch 与 Alpine，`debian/` 由 nfpm 清单取代，而不是再加一份清单 | `requirements.md` 对 Arch、Fedora 与 openSUSE 的说法是「*应当能用，但不在 CI 中*」：它们拿到一个 tar 包，并自行编写服务单元。`release.yml` 明确拒绝第二份打包定义——*一个产物有两份定义，正是软件包最终不含二进制文件的原因*——只有取代才符合这条。带属主与权限模式的九条路径只声明一次，并**由四个安装校验任务证明，而不是仅作断言**。Alpine 是有意选的，明知它意味着 OpenRC，因而多一类需要持续测试的 init 体系 |
+| **2.34** | **迁离正在运行的防火墙**——读取 `nft list ruleset` 与 ufw 的规则，作为暂存规则集提供 | 本清单中唯一一条消除*采用*门槛、而非增加功能的条目。目前已有防火墙的人只能手工抄出规则。排在打包之后，因为运维人员先安装、再迁移 |
+| **2.35** | **更新自动到达**——签名的 APT 与 RPM 仓库，让 `apt upgrade` 与 `dnf upgrade` 能找到 easywall | 文档中的安装方式是 `wget` 与 `dpkg -i`，因此运维人员只能因为界面提示才知道 2.16，并手工安装。排在 2.33 之后，因为仓库提供的是已完成的软件包，而不是反过来。这也是本项目第一个意味着**运维**而非代码的承诺：一个要保管多年的签名密钥，以及一个不能变动的 URL |
+| **2.36** | **每条规则都知道自己的接口**——规则可以指明它作用于哪个接口 | 端口页面自己说每条规则*作用于所有接口*，因此同时有 LAN 与上行链路的主机无法表达本意。排在出站之前而不是与之同版本：`oifname` 是同一个维度，规则模型应当一次加入、两处使用。技术方案见 `docs-tech/specs/2026-09-12-2.19-what-it-passes-on-it-also-filters.md` 的 §5 |
+| **2.37** | **出站流量**——服务器可以向外发送什么变为可配置：`open`（当前行为）或 `allowlist` | 目前 output 链的策略是 `ACCEPT`，且一条规则都没有。本清单中锁定风险最高的一项；它单独走一轮确认窗口，并有独立的 veth 验证 |
+| **2.38** | **可用键盘，也可用屏幕阅读器**——对每个模板做一次经审计的检查 | `aria-live` 在整个界面中只出现**一次**，`prefers-reduced-motion` 出现三次。这不是新功能，而是补课，就像 2.16 那样。有意排在八种语言之前——两轮都要触及每个模板，若把这轮放到后面，就得重新检查八种语言 |
+| **2.39** | **八种语言**——西班牙语、葡萄牙语（巴西）、意大利语、荷兰语、波兰语、俄语、简体中文、日语 | 字符串集稳定后一次做完。不做 RTL：那是设计系统的改动，不是翻译。`fr` 目前是 620 个键中的 471 个（76.0%），而 `en` 与 `de` 完全对齐；把它补齐属于这一轮，不是另开一件事 |
+| **2.40** | **通行密钥失败时说明期待哪个来源**——流程会指出不匹配之处，而不是只记录一句 "did not verify" | `publicOrigin()` 用本进程自身的端口构造期望来源，因此经由终止 TLS 的反向代理到达的浏览器上报的是代理的来源，每个断言都会被拒绝。[反向代理]({{ '/docs/installation/reverse-proxy/' | relative_url }})已经规定通行密钥无法经由反向代理使用，拒绝本身是正确的——但 `passkeyUnavailableReason` 是通过询问**证书**得出这一结论的，而在代理之后给进程配上真证书的运维人员会清掉这个理由，于是启用了一个注定无法成功的按钮。两个来源在 `ValidateLogin` 处都是已知的，所以失败可以自己说明原因。该问题来自一次 traefik 部署，其中后端证书本就因无关且正当的原因即将修复。这不是一个开关：让运维人员断言前面有代理终止，会关掉证书检查却对来源毫无改变——白白关掉一道安全检查 |
+| **2.41** | **列表源知道自己的端口**——按列表源设定端口范围：所有端口、非 Web 端口，或指定端口 | blocklist.de 与 CINS 上报的是对任何目标发起攻击的地址，而当前的列表源在所有端口上都丢弃它们，Web 端口也不例外——其中就有合法的链接预览代理或搜索爬虫。[feeds.md]({{ '/docs/features/feeds/' | relative_url }}) 里的允许列表做法一次只覆盖一个地址；这一项覆盖问题的整体形态 |
+| **3.0** | **可以从外部访问**——带令牌认证的 REST API | 之所以是大版本，是因为 API 是第二个公开接口，也是 easywall 此前没有做出过的兼容性承诺 |
 
-**Deferred: a list published from root01xvp.** One sensor behind the Hetzner
-firewall sees SSH brute force only, which blocklist.de and DShield already
-publish. Publishing addresses needs a GDPR balancing test, a delisting channel
-and an Art. 30 record.
+**已推迟：从 root01xvp 发布列表。** Hetzner 防火墙后只有一台传感器，且只看到 SSH 暴力破解，而 blocklist.de 与 DShield 已经在发布这些。发布地址需要 GDPR 平衡性评估、下架渠道，以及第 30 条记录。
 
-**Deferred: a refresh that would drop your own address.** A refresh loads with
-no acceptance window, so a later copy listing the address you manage the host
-from locks you out with no rollback. A guard that refuses such a copy needs a
-spec amendment and a later release. Until then, allowlist that address.
+**已推迟：会丢掉自己地址的刷新。** 刷新加载时不带确认窗口，因此后续某次列表一旦包含管理主机所用的地址，就会把运维人员锁在外面且无法回滚。要拒绝这类列表需要修订技术方案，并留到更晚的版本。在此之前，把该地址加入允许列表。
 
-## Deliberately excluded
+## 有意排除
 
 | | |
 |---|---|
-| SMTP notifications | Credentials in `web.toml`, foreign mail servers, deliverability — ntfy reaches the same phone without any of it |
-| A reimplemented fail2ban | Replaced by the named set the real one can write into (2.32) |
-| Zones, on the firewalld model | easywall runs on hosts with one uplink; what zones would be for is covered by `routing.mode` |
-| Rule schedules | "Open this port between 08:00 and 18:00" is a state machine nobody can debug once it is in the wrong state |
-| IDS/IPS, deep packet inspection, QoS | Different products. easywall filters packets |
-| Managing several hosts from one interface | The API in 3.0 makes Ansible possible. A fleet interface is a second product |
-| A block page for refused visitors | A refused packet is dropped in the kernel. To show a page, easywall would have to accept the connection it refuses, and for HTTPS it would need the site's own certificate — Cloudflare can, because it terminates TLS. A reverse proxy that holds the certificate is the place for it |
-| More than one account | The single account is the shape of the product: one operator, one firewall, one audit trail. A second account is a permission model, and a permission model on a box whose whole job is one ruleset is a second product. |
+| SMTP 通知 | 凭据要写进 `web.toml`、要面对外部邮件服务器与送达率——ntfy 不用这些也能提醒到同一部手机 |
+| 重新实现一套 fail2ban | 由真正的 fail2ban 可以写入的具名集合取代（2.32） |
+| 按 firewalld 模型的分区（zone） | easywall 运行在只有一条上行链路的主机上；分区要解决的问题由 `routing.mode` 覆盖 |
+| 规则时间表 | 「08:00 到 18:00 之间开放这个端口」是一个一旦进入错误状态就没人能调试的状态机 |
+| IDS/IPS、深度包检测、QoS | 这些是不同的产品。easywall 过滤数据包 |
+| 从一个界面管理多台主机 | 3.0 的 API 让 Ansible 成为可能。机群界面是另一个产品 |
+| 为被拒绝的访问者显示拦截页面 | 被拒绝的数据包在内核中就被丢弃。要显示页面，easywall 就必须接受它本该拒绝的连接，而 HTTPS 还需要站点自己的证书——Cloudflare 能做到，因为它终止 TLS。持有证书的反向代理才是该做这件事的地方 |
+| 多个账户 | 单账户是产品的形态：一名运维人员、一台防火墙、一条审计轨迹。第二个账户意味着权限模型，而在一台全部职责就是一套规则集的机器上引入权限模型，等于做出第二个产品。 |
 
-## What already shipped
+## 已发布的内容
 
-Every release, newest first, each with what it was for:
-[Changelog]({{ '/docs/changelog/' | relative_url }}).
+每个版本，最新的在前，各附上它的目的：[更新日志]({{ '/docs/changelog/' | relative_url }})。
 
 ---
 
-**Next:** [Architecture]({{ '/docs/architecture/' | relative_url }}) ·
-[Security]({{ '/docs/security/' | relative_url }}) ·
-[Contributing]({{ '/docs/contributing/' | relative_url }})
+**下一步：**[架构]({{ '/docs/architecture/' | relative_url }}) ·
+[安全]({{ '/docs/security/' | relative_url }}) ·
+[参与贡献]({{ '/docs/contributing/' | relative_url }})

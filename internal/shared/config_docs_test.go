@@ -277,10 +277,14 @@ func TestTheSchemaLanguagesAreTheShippedCatalogues(t *testing.T) {
 // section.
 func TestEveryCommandLineFlagIsDocumented(t *testing.T) {
 	page := repoFile(t, "docs", "_docs", "configuration.md")
-	start := strings.Index(page, "## The command line")
+	// The page is written in Chinese; the section is found by the explicit anchor
+	// kramdown writes verbatim rather than by its English title, which no longer
+	// exists.
+	start := strings.Index(page, "{#the-command-line}")
 	if start < 0 {
-		t.Fatal(`configuration.md has no "## The command line" section`)
+		t.Fatal(`configuration.md has no command-line section — the heading lost its {#the-command-line} anchor`)
 	}
+	start = strings.LastIndex(page[:start], "\n") + 1
 	section := page[start:]
 	if end := strings.Index(section[3:], "\n## "); end >= 0 {
 		section = section[:end+3]

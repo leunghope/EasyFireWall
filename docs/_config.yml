@@ -1,5 +1,5 @@
 title: easywall
-description: Linux firewall management with a web interface — built for 2026.
+description: 带 Web 界面的 Linux 防火墙管理工具 —— 为 2026 年而建。
 # Apex custom domain, so there is no path prefix. Every internal link goes
 # through relative_url, which reads this — the one exception was the logo
 # below, which carried the prefix by hand.
@@ -10,7 +10,7 @@ author:
   name: jp1337
   url: https://github.com/jp1337
 
-lang: en
+lang: zh
 timezone: Europe/Berlin
 
 # Shown as the badge in the sidebar. Must match shared.CurrentVersion in
@@ -18,7 +18,7 @@ timezone: Europe/Berlin
 # It was hardcoded in the layout as "v2.4" and drifted a patch release behind.
 version: "2.29.2"
 
-tagline: "Your firewall. Your rules. No surprises."
+tagline: "你的防火墙。你的规则。没有意外。"
 logo: /assets/img/icon.svg
 
 # jekyll-seo-tag reads og:image / twitter:image only from page.image (front
@@ -91,95 +91,95 @@ exclude:
 # store. TestEveryDocsPageIsInTheNav holds both directions: every page in the
 # collection has an entry here, and every entry here has a page.
 nav:
-  - title: Home
+  - title: 首页
     path: /
-  - title: Overview
+  - title: 概览
     path: /docs/
 
-  - title: Installation
+  - title: 安装
     group: true
     children:
-      - title: Requirements
+      - title: 环境要求
         path: /docs/installation/requirements/
       - title: Debian / Ubuntu
         path: /docs/installation/debian/
       - title: Docker
         path: /docs/installation/docker/
-      - title: Manual (Source)
+      - title: 手动安装（源码）
         path: /docs/installation/manual/
-      - title: Demo Mode
+      - title: 演示模式
         path: /docs/installation/demo/
-      - title: First Run
+      - title: 首次运行
         path: /docs/installation/first-run/
-      - title: Behind a Reverse Proxy
+      - title: 反向代理之后
         path: /docs/installation/reverse-proxy/
 
-  - title: Rules
+  - title: 规则
     group: true
     children:
-      - title: Ports
+      - title: 端口
         path: /docs/features/ports/
-      - title: Blocklist
+      - title: 拦截列表
         path: /docs/features/blocklist/
-      - title: Feeds
+      - title: 列表源
         path: /docs/features/feeds/
-      - title: Countries
+      - title: 国家/地区
         path: /docs/features/countries/
-      - title: Allowlist
+      - title: 允许列表
         path: /docs/features/allowlist/
-      - title: Port Forwarding
+      - title: 端口转发
         path: /docs/features/forwarding/
-      - title: Custom Rules
+      - title: 自定义规则
         path: /docs/features/custom-rules/
-      - title: Firewall Filters
+      - title: 防火墙过滤器
         path: /docs/features/filters/
-      - title: Docker Coexistence
+      - title: 与 Docker 共存
         path: /docs/features/docker/
 
-  - title: System
+  - title: 系统
     group: true
     children:
-      - title: Dashboard
+      - title: 仪表盘
         path: /docs/features/dashboard/
-      - title: Applying Rules
+      - title: 应用规则
         path: /docs/features/apply/
-      - title: System & Network Settings
+      - title: 系统与网络设置
         path: /docs/features/system-settings/
-      - title: Second Factor
+      - title: 第二因子
         path: /docs/features/two-factor/
-      - title: Blocked traffic
+      - title: 被拦截的流量
         path: /docs/features/blocked-traffic/
-      - title: Audit Log
+      - title: 审计日志
         path: /docs/features/audit-log/
-      - title: Notifications
+      - title: 通知
         path: /docs/features/notifications/
-      - title: Export & Import
+      - title: 导出与导入
         path: /docs/features/export-import/
-      - title: Health Check
+      - title: 健康检查
         path: /docs/features/health/
-      - title: Recovery & Panic Mode
+      - title: 恢复与恐慌模式
         path: /docs/features/recovery/
 
-  - title: How it works
+  - title: 工作原理
     group: true
     children:
-      - title: Architecture
+      - title: 架构
         path: /docs/architecture/
-      - title: Configuration
+      - title: 配置
         path: /docs/configuration/
-      - title: Environment Variables
+      - title: 环境变量
         path: /docs/environment/
-      - title: Security
+      - title: 安全
         path: /docs/security/
 
-  - title: Project
+  - title: 项目
     group: true
     children:
-      - title: Roadmap
+      - title: 路线图
         path: /docs/roadmap/
-      - title: Contributing
+      - title: 贡献指南
         path: /docs/contributing/
-      - title: Changelog
+      - title: 更新日志
         path: /docs/changelog/
-      - title: License
+      - title: 许可证
         path: /docs/license/

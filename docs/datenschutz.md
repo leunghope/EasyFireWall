@@ -1,138 +1,122 @@
 ---
 layout: default
-title: Datenschutzerklärung
-description: Was easywall-project.org, die öffentliche Demo und die freiwillige Installationszählung über dich verarbeiten — und was nicht.
+title: 数据保护声明
+description: easywall-project.org、公开演示以及自愿参与的安装计数会处理你的哪些信息 —— 以及哪些不处理。
 permalink: /datenschutz/
-# Carries the controller's name and postal address (controller.html). Kept out
-# of search indexes so those personal details are not published by Google et al.
+# 其中包含控制者的姓名与通信地址（controller.html）。这些信息不进入搜索索引，
+# 以免被 Google 等搜索引擎公开：noindex meta（default.html），并从 sitemap.xml
+# 中排除（jekyll-sitemap）。
 noindex: true
 sitemap: false
 ---
 
-<div lang="de" markdown="1">
+<div lang="zh-Hans" markdown="1">
 
-# Datenschutz
+# 数据保护声明
 
-Informationen nach Art. 13 und 14 DSGVO.
+依据 Art. 13 与 Art. 14 DSGVO 提供的信息。
 
-## Verantwortlich
+## 责任主体
 
 {% include controller.html %}
 
-E-Mail: [info@easywall-project.org](mailto:info@easywall-project.org)
+电子邮件：[info@easywall-project.org](mailto:info@easywall-project.org)
 
-## Worum es geht
+## 本声明涵盖什么
 
-- **easywall-project.org**, diese Dokumentation: deine IP-Adresse, bei GitHub
-- **demo.easywall-project.org**, die öffentliche Demo: ein Server-Protokoll mit gekürzter IP-Adresse
-- **Installationszählung**, freiwillig, gesendet von einer easywall-Installation: eine Zufallskennung und die Version, nie eine Adresse
-- **E-Mail** an die Adresse oben: was du schreibst
+- **easywall-project.org**，本文档站点：你的 IP 地址，由 GitHub 接收
+- **demo.easywall-project.org**，公开演示：一份 IP 地址经过缩短的服务器日志
+- **安装计数**，自愿参与，由 easywall 安装实例发送：一个随机标识符与版本号，绝不含地址
+- **电子邮件**，发往上述地址：你所写的内容
 
-**easywall auf deinem eigenen Server gehört dir.** Für alles, was es
-verarbeitet, bist du verantwortlich; zu uns gelangt nichts, solange du die
-Installationszählung nicht einschaltest. Seine übrigen ausgehenden Anfragen
-(Update-Prüfung, Benachrichtigungen, Feeds, Länderabfrage, ACME) gehen von
-deinem Server an die Dienste, die
-[Security]({{ '/docs/security/' | relative_url }}) nennt, nicht an uns.
+**装在你自己服务器上的 easywall 属于你。** 它处理的一切，责任都在你；只要你不
+开启安装计数，就不会有任何数据到达我们这里。它的其他出站请求（更新检查、通知、
+列表源、国家/地区查询、ACME）从你的服务器发往
+[安全]({{ '/docs/security/' | relative_url }})页面所列的服务，而不是发给我们。
 
-Zwei davon laufen ab Werk, je einmal am Tag. Die Update-Prüfung fragt
-`api.github.com`. Die Länderabfrage lädt eine Liste von Adressblöcken von
-`github.com`, das sie über `release-assets.githubusercontent.com` ausliefert
-und dabei die IP-Adresse deines Servers und einen User-Agent mit easywall und
-seiner Version erhält, nach einem Fehler ab einer Stunde erneut.
-`update_check = false` und `country_lookup = false` in der `web.toml` schalten
-sie ab.
+其中两个请求出厂即启用，各自每天一次。更新检查会请求 `api.github.com`。国家/地区
+查询从 `github.com` 下载一份地址块列表，实际由
+`release-assets.githubusercontent.com` 提供，在此过程中会收到你服务器的 IP
+地址，以及一个带有 easywall 及其版本的 User-Agent；失败后，从一小时起再
+重试。在 `web.toml` 中设置 `update_check = false` 与
+`country_lookup = false` 即可关闭它们。
 
-Keine Seite setzt ein Tracking-Cookie, lädt etwas von Dritten oder nutzt einen
-Analysedienst.
+本站没有任何页面设置跟踪 cookie、加载第三方内容或使用分析服务。
 
 ## easywall-project.org
 
-Ausgeliefert von **GitHub Pages** — GitHub, Inc., 88 Colin P. Kelly Jr. St., San
-Francisco, CA 94107, USA. GitHub protokolliert und speichert nach eigener Angabe
-die IP-Adresse jedes Besuchers einer Pages-Seite *zu Sicherheitszwecken*. Diese
-Protokolle erhalten wir nicht. GitHub ist nach dem EU-US Data Privacy Framework
-zertifiziert; darauf beruht die Übermittlung in die USA (Art. 45 DSGVO). Die
-Speicherdauer bestimmt GitHub, siehe
-[GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
-Rechtsgrundlage: unser berechtigtes Interesse, die Dokumentation zuverlässig zu
-veröffentlichen (Art. 6 Abs. 1 lit. f DSGVO).
+由 **GitHub Pages** 提供 —— GitHub, Inc., 88 Colin P. Kelly Jr. St., San
+Francisco, CA 94107, USA。GitHub 据其自身说明，会*出于安全目的*记录并保存 Pages
+站点每位访客的 IP 地址。我们不会收到这些日志记录。GitHub 已通过 EU-US Data
+Privacy Framework 认证；向美国传输数据的依据即在于此（Art. 45 DSGVO）。保存
+期限由 GitHub 决定，见
+[GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)。
+法律依据：我们可靠地发布文档的合法权益（Art. 6 Abs. 1 lit. f DSGVO）。
 
-Schriften und Suche kommen von dieser Website selbst. Deine Wahl zwischen hell
-und dunkel liegt im lokalen Speicher deines Browsers und wird nirgendwohin
-gesendet.
+字体与搜索都由本站自身提供。你在浅色与深色之间的选择保存在浏览器的本地存储中，
+不会被发送到任何地方。
 
 ## demo.easywall-project.org
 
-Läuft auf einem Server der Hetzner Online GmbH, Industriestr. 25, 91710
-Gunzenhausen, mit Vertrag zur Auftragsverarbeitung (Art. 28 DSGVO).
+运行在 Hetzner Online GmbH 的一台服务器上（Industriestr. 25, 91710
+Gunzenhausen），并与其签有数据处理协议（Art. 28 DSGVO）。
 
-- **Webserver-Protokoll** — IP-Adresse, gekürzt bevor sie geschrieben wird
-  (IPv4: letzte zwei Byte entfernt; IPv6: nur die ersten 48 Bit), Zeit, Host,
-  aufgerufene Adresse, Status, verweisende Seite, Browserkennung. Für die
-  Auslieferung und um Angriffe und Fehler zu erkennen. **Bis zu 15 Tage** auf dem
-  Server, dazu eine Kopie auf einem von uns selbst betriebenen Protokollserver auf
-  eigener Hardware in Deutschland, dort nach **einem Jahr** gelöscht.
-- **Cookie `easywall`** — deine Demo-Sitzung. Läuft 10 Minuten nach der letzten
-  Nutzung ab, oder wenn du dich abmeldest.
-- **Cookies `easywall_pending`, `easywall_passkey`, `easywall_login_passkey`** —
-  nur während du die Seiten zum zweiten Faktor ausprobierst. 1 bis 5 Minuten.
-- **Cookie `easywall_lang`** — nur wenn du die Sprache wechselst. Ein Jahr.
-- **Was du eingibst** — Regeln, Adressen, Einstellungen. Alle 6 Stunden
-  zurückgesetzt.
+- **Web 服务器日志** —— IP 地址在写入之前就已缩短（IPv4：去掉最后两个字节；
+  IPv6：只保留前 48 位），另有时间、主机、请求的地址、状态、来源页面、浏览器
+  标识。用于内容投递，以及识别攻击与故障。在服务器上保存**最多 15 天**，另有一份
+  副本存放在我们自行运营的日志服务器上，该服务器位于德国、是我们自己的硬件，日志
+  在那里于**一年**后删除。
+- **Cookie `easywall`** —— 你的演示会话。在最后一次使用 10 分钟后失效，或在你
+  退出登录时失效。
+- **Cookies `easywall_pending`、`easywall_passkey`、`easywall_login_passkey`** ——
+  仅在你试用第二因子相关页面期间存在。有效期 1 至 5 分钟。
+- **Cookie `easywall_lang`** —— 仅在你切换语言时存在。有效期一年。
+- **你输入的内容** —— 规则、地址、设置。每 6 小时重置一次。
 
-Die Demo schreibt **keine** IP-Adresse in ihr Audit-Log oder ihr eigenes
-Protokoll, und nichts, was du eingibst, erreicht eine echte Firewall. Ein
-Fehlerprotokoll schreibt der Webserver für die Demo nicht. Diese Cookies sind für
-das, was du von der Demo verlangst, unbedingt erforderlich (§ 25 Abs. 2 Nr. 2
-TDDDG); keines davon verfolgt dich. Rechtsgrundlage: berechtigtes Interesse, die
-Software zu zeigen und sicher zu betreiben (Art. 6 Abs. 1 lit. f DSGVO).
+演示**不会**在其审计日志或自身日志中记录 IP 地址，你输入的任何内容都不会到达
+真实防火墙。Web 服务器不会为演示写出错误日志。这些 Cookie 对于你要求演示执行
+的操作是绝对必要的（§ 25 Abs. 2 Nr. 2 TDDDG）；其中没有任何一个会跟踪你。法律依据：
+展示该软件并安全运行它的合法权益（Art. 6 Abs. 1 lit. f DSGVO）。
 
-## Installationszählung
+## 安装计数
 
-Aus, solange der Betreiber einer easywall-Installation sie nicht einschaltet.
-Einmal am Tag sendet die Installation eine zufällige 32-stellige Kennung und
-ihre Version an `telemetry.wdkro.de` — denselben Hetzner-Server. Der empfangende
-Webserver schreibt Zeit, Kennung und Version, **keine IP-Adresse**, in ein
-Protokoll, das 36 Tage aufbewahrt wird; länger bleibt nur eine Zahl je Version.
-Die Kennung entsteht auf deinem Server und beschreibt niemanden; wer
-`telemetry.json` löscht, bekommt eine neue. Rechtsgrundlage: Einwilligung
-(Art. 6 Abs. 1 lit. a DSGVO), widerrufen durch Ausschalten unter *System* — die
-nächste Meldung wird dann nicht mehr gesendet. Solange sie aus ist, fragt die
-Oberfläche nach jedem Funktions-Update einmal nach; *Nicht mehr fragen* beendet das.
+关闭状态，除非 easywall 安装实例的运营者主动开启。安装实例每天一次向
+`telemetry.wdkro.de` 发送一个随机的 32 字符标识符及其版本号 —— 就是同一台
+Hetzner 服务器。接收端的 Web 服务器会把时间、标识符与版本号写入一份保存 36 天
+的日志，**不记录 IP 地址**；留存更久的只是按版本统计的一个数字。标识符在你的
+服务器上生成，不指向任何人；删除 `telemetry.json` 的人会得到一个新的。法律依据：
+同意（Art. 6 Abs. 1 lit. a DSGVO），可通过在*系统*下关闭来撤回 —— 之后的下一次
+上报就不会再发送。在关闭期间，界面会在每次功能更新后询问一次；*不再询问*即可
+结束。
 
-## E-Mail
+## 电子邮件
 
-Nur, um dir zu antworten. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO, soweit
-es um eine Leistung geht, die du anfragst, sonst unser berechtigtes Interesse,
-Anfragen zu beantworten (lit. f). Gespeichert, solange die Anfrage es braucht,
-länger nur, wenn ein Gesetz es verlangt.
+仅用于回复你。法律依据：如果涉及的是你请求的一项服务，则为
+Art. 6 Abs. 1 lit. b DSGVO；否则为我们回复询问的合法权益（lit. f）。保存期限以
+该询问所需为限，只有法律要求时才会更久。
 
-## Postanschrift über Impressum-Privatschutz
+## 经 Impressum-Privatschutz 收转的通信地址
 
-Post an die Anschrift oben nimmt die IMPRESSUM-PRIVATSCHUTZ GmbH,
-Ludwig-Erhard-Str. 18, 20459 Hamburg, entgegen und leitet sie weiter; mit ihr
-besteht ein Vertrag zur Auftragsverarbeitung. Rechtsgrundlage: berechtigtes
-Interesse an einer zuverlässigen Postanschrift (Art. 6 Abs. 1 lit. f).
-[Ihre Datenschutzerklärung](https://impressum-privatschutz.de/datenschutzerklaerung/).
+寄往上述地址的邮件由 IMPRESSUM-PRIVATSCHUTZ GmbH（Ludwig-Erhard-Str. 18, 20459
+Hamburg）代收并转交；我们与其签有数据处理协议。法律依据：拥有可靠通信地址的
+合法权益（Art. 6 Abs. 1 lit. f）。
+[其数据保护声明](https://impressum-privatschutz.de/datenschutzerklaerung/)。
 
-## Empfänger
+## 接收方
 
-Die oben genannten Dienstleister, und Behörden, wo ein Gesetz uns verpflichtet
-(Art. 6 Abs. 1 lit. c). Nichts wird verkauft oder für Werbung weitergegeben. Die
-einzige Übermittlung außerhalb der EU ist die zu GitHub, wie beschrieben.
+上述服务提供商，以及法律要求我们披露时的公共机构（Art. 6 Abs. 1 lit. c）。
+任何数据都不会被出售，也不会用于广告共享。向欧盟以外传输数据的只有发往 GitHub
+的这一次，如上所述。
 
-## Deine Rechte
+## 你的权利
 
-Auskunft (Art. 15 DSGVO), Berichtigung (16), Löschung (17), Einschränkung (18),
-Datenübertragbarkeit (20) und **Widerspruch** gegen Verarbeitung auf Grundlage
-berechtigten Interesses (21). Eine Einwilligung kannst du jederzeit für die
-Zukunft widerrufen (Art. 7 Abs. 3). Schreib an die Anschrift oder E-Mail oben.
-Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren
-(Art. 77).
+查阅（Art. 15 DSGVO）、更正（16）、删除（17）、限制处理（18）、数据可携带（20），
+以及**反对**基于合法权益的处理（21）。同意可以随时撤回，仅对未来生效
+（Art. 7 Abs. 3）。可写信至上述地址或电子邮件。你也可以向数据保护监管机构投诉
+（Art. 77）。
 
-Stand: 15. Oktober 2026. Quelle: Impressum-Privatschutz, angepasst an diese Website.
+截至 2026 年 10 月 15 日。来源：Impressum-Privatschutz，已针对本网站调整。
 
-In English: [Privacy policy]({{ '/privacy/' | relative_url }}).
+同一份声明的另一版本：[隐私政策]({{ '/privacy/' | relative_url }})。
 
 </div>

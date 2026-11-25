@@ -1,57 +1,32 @@
 ---
 layout: default
-title: Recovery & Panic Mode
-description: The rules come back after a restart, and the console tool for when they should not have.
+title: 恢复与恐慌模式
+description: 重启后规则会回来，以及当它本不该回来时可用的控制台工具。
 ---
 
-# Recovery & Panic Mode
+# 恢复与恐慌模式
 
-Two things, and they are opposites. After a restart, the rules you last confirmed
-are back in force — no window, no delay. And when that is exactly what has shut
-you out, `easywall-core` has a way back that does not need the web interface.
+两件事，方向相反。重启之后，你上次确认的规则会重新生效 —— 没有确认窗口，没有延迟。而当正是这一点把你锁在外面时，`easywall-core` 提供了一条不需要网页界面的回去的路。
 
-## After a restart, the rules are back
+## 重启之后，规则会回来
 
-Before 2.7, nftables forgot everything on reboot. The table came up empty, and
-the machine stayed unfiltered until somebody opened the web interface and
-pressed Apply. That made a reboot the accidental escape route: lock yourself
-out, restart the machine, and you are back in. That door is closed now.
-`easywall-core` puts the stored **Current** rule set into the kernel before the
-socket accepts a single connection.
+在 2.7 之前，nftables 在重启时会忘掉一切：启动后表是空的，机器一直不受过滤，直到有人打开网页界面按下应用。这让重启成了一条意外的逃生通道：把自己锁在外面，重启机器，你就又进去了。那扇门现在关上了。`easywall-core` 会在套接字接受哪怕一个连接之前，把存储的 **Current** 规则集写入内核。
 
-**There is no acceptance window on this**, and that looks like a breach of
-easywall's central promise. Look at what `Current` already is, though: a rule
-set that has already survived one. It got there by being applied and then
-confirmed, or by surviving a rollback nobody had to trigger. Restoring it is not
-a new change taking effect unconfirmed — refusing to restore it would be the
-actual change, and the one nobody asked for.
+**这一步没有确认窗口**，看起来像是违背了 easywall 的核心承诺。但请看看 `Current` 本身是什么：一套已经经历过一次窗口的规则。它之所以在那儿，是因为它被应用并确认过，或者是因为挺过了一次没人需要触发的回滚。恢复它不是一项未经确认就生效的新更改 —— 拒绝恢复才是真正的更改，而且是没人要求的那一项。
 
-One case would break that: the core dying *inside* a window — killed, out of
-memory, a power cut — before it could roll back. An apply therefore leaves a
-marker (`unconfirmed` in `data_dir`) until its window has an outcome. A start
-that finds it puts back the set in force before that apply first, and logs
-`apply_rolledback` with detail `core stopped`.
+有一种情况会打破这一点：core 在窗口*之内*死掉 —— 被杀、内存耗尽、断电 —— 还没来得及回滚。因此每次应用都会留下一个标记（`data_dir` 中的 `unconfirmed`），直到它的窗口有了结果。发现该标记的启动过程会先把那次应用之前生效的规则集放回去，并记录 `apply_rolledback`，detail 为 `core stopped`。
 
-A window here could not work even if you wanted it to. Nobody is present at boot
-to confirm, so it would expire. The rollback would install `Backup`, which
-nobody confirmed either. There is no second window behind that one to catch it.
-A loop with no exit — so there is not a loop.
+就算你想，这里的窗口也没法工作。启动时没人在场确认，所以它一定会过期。回滚会装上 `Backup`，那同样没人确认过。那之后没有第二个窗口来兜住它。一个没有出口的循环 —— 所以干脆不设循环。
 
-## What to do when you have locked yourself out
+## 把自己锁在外面时怎么办
 
-In order, because the first one costs nothing and undoes itself:
+按顺序来，因为第一条不花任何代价，而且会自行撤销：
 
-1. **Wait.** If what locked you out was an apply — not a reboot — the acceptance
-   window is still running. Do nothing for up to 120 seconds (or whatever
-   [the window is configured to]({{ '/docs/features/system-settings/' | relative_url }})),
-   and the previous rules come back on their own. This is the same recovery
-   [Applying Rules]({{ '/docs/features/apply/' | relative_url }}) describes — it costs
-   nothing to try, and it needs nothing but time.
-2. **Only then, the console.** Reach for a terminal on the machine once any of
-   these is true:
-   - The acceptance window has already closed.
-   - The acceptance window was switched off.
-   - What locked you out was the restart itself, not an apply.
+1. **等待。** 如果把你锁在外面的是某次应用 —— 而不是重启 —— 确认窗口仍在运行。什么都不做，最多等 120 秒（或[窗口配置成的]({{ '/docs/features/system-settings/' | relative_url }})任意时长），先前的规则会自行回来。这就是[应用规则]({{ '/docs/features/apply/' | relative_url }})描述的同一套恢复 —— 试一下不花代价，需要的只是时间。
+2. **只有到那时，才去控制台。** 只要出现下面任一种情况，就去机器上用终端：
+   - 确认窗口已经关闭。
+   - 确认窗口被关掉了。
+   - 把你锁在外面的是重启本身，而不是某次应用。
 
 ```bash
 easywall-core status    # is the firewall enforcing, and since when?
@@ -59,9 +34,7 @@ easywall-core panic     # take the firewall down, right now
 easywall-core resume    # end panic mode and put the stored rules back
 ```
 
-`panic` and `resume` need root. The daemon refuses both from any other user —
-the web interface's own account included — with `only root at the console may
-send this command`.
+`panic` 与 `resume` 需要 root。守护进程会拒绝其他任何用户发来的这两个命令 —— 包括网页界面自己的账户 —— 并给出 `only root at the console may send this command`。
 
 ### `status`
 
@@ -72,10 +45,7 @@ acceptance: accepted
 last apply: 2026-08-16T09:12:03Z
 ```
 
-`acceptance: idle` is two states in one word — a window waiting to be used, and
-no window at all — so since 2.20.1 a host with `acceptance.enabled = false` says
-which. The `acceptance:` line itself does not change, so a check matching it
-exactly keeps working:
+`acceptance: idle` 用一个词表示两种状态 —— 一个等待被使用的窗口，以及根本没有窗口 —— 所以从 2.20.1 起，`acceptance.enabled = false` 的主机会说明是哪一种。`acceptance:` 这一行本身不变，所以精确匹配它的检查仍然有效：
 
 ```
 $ easywall-core status
@@ -85,9 +55,7 @@ acceptance: idle
 last apply: 2026-08-16T09:12:03Z
 ```
 
-When the daemon cannot be reached at all — crashed, or not started yet —
-`status` reads the panic marker directly instead. It does not bother asking a
-socket that nothing answers on:
+当完全联系不上守护进程时 —— 崩溃了，或者还没启动 —— `status` 改为直接读取恐慌标记。它不会去问一个没人应答的套接字：
 
 ```
 $ easywall-core status
@@ -96,21 +64,14 @@ panic mode: engaged — the rules will NOT come back on start
             run `easywall-core resume` first
 ```
 
-| Exit code | Meaning |
+| 退出码 | 含义 |
 |---|---|
-| `0` | The firewall is enforcing, **or** panic mode is engaged and says it was meant not to be — either way, the daemon answered |
-| `2` | The firewall is not filtering when it should be, **or** the daemon is not running at all — whether or not panic mode is engaged |
+| `0` | 防火墙正在拦截，**或者**恐慌模式已启用且表示本就该如此 —— 无论哪种，守护进程都作了应答 |
+| `2` | 防火墙在本该过滤时没有过滤，**或者**守护进程根本没有运行 —— 不论恐慌模式是否启用 |
 
-That disjunction on `2` is deliberate, not an oversight. A machine with no
-daemon running is never in the state it should be — nothing will put the rules
-back until the daemon starts and panic mode ends. So a monitoring check sees `2`
-either way. Only the printed message tells you which case you are in.
+`2` 上的这个“或者”是有意为之，不是疏漏。没有守护进程在运行的机器永远不处于它应有的状态 —— 在守护进程启动、恐慌模式结束之前，没有任何东西会把规则放回去。所以监控检查两种情况下都会看到 `2`。只有打印出的信息才会告诉你属于哪一种。
 
-**A fresh installation exits `2` as well, and nothing is wrong with it.** Nothing
-has been applied yet, so there are no rules and the machine really is not
-filtering. A setup script that reads any non-zero `status` as a failure stops on
-the one machine where there is nothing yet to fail. Read the `firewall:` line, or
-run the check after the first apply.
+**全新安装同样会以 `2` 退出，而它一切正常。** 还没有应用过任何东西，所以没有规则，机器确实没有在过滤。把任何非零的 `status` 都当作失败的安装脚本，会停在一台根本还没有东西可失败的机器上。请读取 `firewall:` 这一行，或者在第一次应用之后再运行检查。
 
 ### `panic`
 
@@ -120,20 +81,11 @@ The firewall is down. This machine is unfiltered, and stays that way
 across a restart until you run `easywall-core resume`.
 ```
 
-`panic` flushes `table inet easywall`. Every rule, every protection module, every
-port you opened — gone, immediately, and the machine is reachable on all of them.
-This is the way back into a machine your own rules have shut you out of, at the
-cost of the thing that shuts anyone else out too. Run it only at the console of a
-machine you already have a more physical way to reach.
+`panic` 会清空 `table inet easywall`。每一条规则、每一个防护模块、每一个你打开的端口 —— 立刻消失，机器在这些端口上全部可达。这是回到一台被你自己规则锁住的机器的路，代价是同样拆掉了挡住别人的那道屏障。只在你能亲手接触到的机器的控制台上运行它。
 
-`panic` waits for the same lock an in-flight apply holds while it writes custom
-rules through `nft`. If it appears to hang, that is almost certainly the wait —
-it is not stuck.
+`panic` 会等待一个正在进行的应用通过 `nft` 写入自定义规则时持有的同一把锁。如果它看起来像卡住了，那几乎可以肯定是在等这把锁 —— 它并没有卡死。
 
-If the daemon does not answer within that wait, `panic` reports the failure. It
-also reads the marker and says what it holds, because the daemon writes the
-marker before it touches the table. The teardown is usually already landing by
-the time the wait runs out. Run `status` next, rather than `panic` again.
+如果守护进程在等待期间没有应答，`panic` 会报告失败。它还会读取标记并说明其中的内容，因为守护进程在动表之前就写下了标记。等到等待超时，拆除往往已经发生了。接下来运行 `status`，而不是再跑一次 `panic`。
 
 ### `resume`
 
@@ -142,78 +94,43 @@ $ easywall-core resume
 Panic mode is over and the stored rules are back in force.
 ```
 
-`resume` clears the marker and restores `Current` — the same restore a restart
-performs, run on demand. The line it prints says what actually happened:
+`resume` 清除标记并恢复 `Current` —— 与重启所做的是同一次恢复，只是按需运行。它打印的那一行说明实际发生了什么：
 
-| Panic mode was | Rules ever applied | `resume` says |
+| 恐慌模式 | 是否曾经应用过规则 | `resume` 说 |
 |---|---|---|
-| engaged | yes | *Panic mode is over and the stored rules are back in force.* |
-| engaged | no | panic mode is over, and there were no rules to put back |
-| not engaged | yes | it was not engaged; the stored rules were written again |
-| not engaged | no | it was not engaged; nothing changed |
+| 已启用 | 是 | *恐慌模式已结束，存储的规则重新生效。* |
+| 已启用 | 否 | 恐慌模式已结束，没有规则需要放回 |
+| 未启用 | 是 | 它并未启用；存储的规则被重新写入 |
+| 未启用 | 否 | 它并未启用；没有任何变化 |
 
-Only the first two write `panic_resumed` to the audit log. If the daemon is not running, `resume` can only clear
-the marker; it says so, and names the command to start the service so the
-restore actually happens.
+只有前两种情况会把 `panic_resumed` 写入审计日志。如果守护进程没有运行，`resume` 只能清除标记；它会说明这一点，并指出启动服务的命令，好让恢复真正发生。
 
-If the daemon *is* running but an apply is already in flight, `resume` still
-clears the marker. Panic mode has genuinely ended. The restore itself is
-refused, though, and the command exits `1`. The rules are not back yet in that
-case.
-Run `status` to see when the apply finishes, then `resume` again.
+如果守护进程*确实*在运行，但已经有一次应用正在进行，`resume` 仍会清除标记。恐慌模式确实结束了。不过恢复本身会被拒绝，命令以 `1` 退出。那种情况下规则还没有回来。运行 `status` 看应用何时结束，然后再运行一次 `resume`。
 
-## Panic mode survives a restart, deliberately
+## 恐慌模式有意在重启后继续生效
 
-The whole reason panic mode exists is to give you back the escape hatch 2.7
-takes away. If a reboot undid it, the next restart would put you right back
-behind the rules you just tore down for exactly that reason. That would turn
-the fix for one lockout into the next one. So while panic mode is engaged, the
-startup restore does not run, and it stays that way until you run `resume`.
+恐慌模式存在的全部理由，就是把 2.7 拿走的那条逃生通道还给你。如果重启会解除它，那么下一次重启就会把你重新关回那些你正是为此刚刚拆掉的规则后面。那会把一次锁死的补救变成下一次锁死。所以在恐慌模式启用期间，启动时的恢复不会运行，并且会一直如此，直到你运行 `resume`。
 
-While the marker exists, two more things change.
-An apply is refused rather than queued behind a table that is not there, and
-the acceptance rollback stops short of the kernel. It still reverts the stored
-rules, so `Current` never keeps a set nobody confirmed. That matters, because
-the next restore installs `Current` with no acceptance window of its own. But
-it writes nothing into the table the console just took down. Both are covered
-on [Security]({{ '/docs/security/' | relative_url }}).
+标记存在期间，还有两处变化。应用会被直接拒绝，而不是排在一张并不存在的表后面；确认窗口的回滚也不会走到内核。它仍然会回退存储的规则，所以 `Current` 永远不会保留一套没人确认过的规则。这一点很重要，因为下一次恢复会安装 `Current`，而它自身没有确认窗口。但它不会往控制台刚刚拆掉的那张表里写任何东西。两者都在[安全]({{ '/docs/security/' | relative_url }})页面有说明。
 
-Engaging panic mode also wins a race it used to lose. The daemon re-reads the
-marker after every write to the table, not only before one. So a `panic` that
-lands while an apply or a startup restore is mid-write takes the rules down
-again. It does not leave them live behind a marker that says the machine is
-unfiltered.
+启用恐慌模式还会赢下一场它曾经输掉的竞态。守护进程在每次写表之后都会重新读取标记，而不只是在写之前。所以一次落在应用或启动恢复写到一半时的 `panic`，会再次把规则拆掉。它不会让规则继续生效，却留下一个声称机器不受过滤的标记。
 
-## The marker file
+## 标记文件
 
-Panic mode is recorded in one file:
+恐慌模式记录在一个文件里：
 
 ```
 /var/lib/easywall/panic
 ```
 
-Its presence *is* the state — there is nothing inside it to read. Anyone
-looking at a directory listing of `/var/lib/easywall` and finding a file named
-`panic` sitting beside `rules.json` should be able to guess what it means
-without opening it. That is the point of naming it plainly rather than
-something that has to be looked up. It is owned by root, mode `0600`: the web
-process learns about panic mode over the socket, in the status reply, and
-never reads this path itself.
+它的存在*就是*状态 —— 文件里没有任何内容可读。任何人看 `/var/lib/easywall` 的目录列表，发现一个名为 `panic` 的文件挨着 `rules.json`，都应该不用打开就能猜到它是什么意思。这就是为什么它按自身的含义命名，而不是取一个还得去查的名字。它归 root 所有，权限 `0600`：web 进程通过套接字在状态应答里得知恐慌模式，自己从不读取这个路径。
 
-## Why this ends at the console, not in the browser
+## 为什么只能在控制台结束，而不是在浏览器里
 
-The interface shows panic mode as a banner across every page — and the banner
-has no button. That omission is deliberate, not missing work. A control there
-would let the network-facing process re-arm a firewall a human just disarmed
-at the machine, on purpose. All it would take is a stolen session, or nothing
-more than a browser tab left open. `easywall-web` has no path to the kernel by
-design, and panic mode is the one state where staying that way matters most.
-The moment somebody chose to make the machine reachable at any cost, the
-design should not hand that decision back to the process reachable from the
-network. Ending panic mode takes the console, on purpose, every time.
+界面把恐慌模式显示为横跨每个页面的横幅 —— 而横幅上没有按钮。这个省略是有意为之，不是没做完。那里如果有一个控件，就等于让面向网络的进程，去重新启用一个人刚刚在机器上特意解除的防火墙。所需的只是一次会话被盗，或者仅仅是一个没关的浏览器标签页。`easywall-web` 按设计没有通往内核的路径，而恐慌模式正是保持这一点最重要的那种状态。在某人选择不惜代价让机器可达的那一刻，设计不该把那个决定交还给能从网络访问到的进程。结束恐慌模式每次都需要控制台，这是有意的。
 
 ---
 
-**Next:** [Security]({{ '/docs/security/' | relative_url }}) ·
-[Audit Log]({{ '/docs/features/audit-log/' | relative_url }}) ·
-[Applying Rules]({{ '/docs/features/apply/' | relative_url }})
+**下一步：**[安全]({{ '/docs/security/' | relative_url }}) ·
+[审计日志]({{ '/docs/features/audit-log/' | relative_url }}) ·
+[应用规则]({{ '/docs/features/apply/' | relative_url }})

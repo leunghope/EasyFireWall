@@ -1,18 +1,16 @@
 ---
 layout: default
 title: Docker
-description: One multi-arch image, three registries, four tags — and why it needs host networking.
+description: 一个多架构镜像、三个镜像仓库、四种标签——以及为什么它需要 host 网络。
 ---
 
 # Docker
 
-easywall filters the **host's** firewall, so it runs on the machine you want
-protected — which is usually not the machine you are browsing from. Everything
-below assumes that: commands on the server, browser on your own machine.
+easywall 过滤的是**宿主机**的防火墙，所以它跑在你想要保护的那台机器上——而那通常不是你浏览网页用的机器。下面的一切都以此为前提：命令在服务器上执行，浏览器在你自己的机器上。
 
-## First run
+## 首次运行
 
-On the server, over SSH:
+在服务器上，通过 SSH：
 
 ```bash
 git clone https://github.com/jp1337/easywall.git
@@ -20,40 +18,25 @@ cd easywall
 docker compose up -d
 ```
 
-Then, from your own machine, open `https://<server>:12227` — the address you
-already reach that host on. **`localhost` only works when easywall is on the
-machine in front of you**, and it is the one instruction this page used to give.
+然后在你自己的机器上打开 `https://<server>:12227`——也就是你平时访问那台主机用的地址。**只有当 easywall 就跑在你面前的机器上时，`localhost` 才有效**，而这正是本页过去唯一给出的指示。
 
-Five things to expect on that first page:
+首次打开那个页面时会看到五件事：
 
 | | |
 |---|---|
-| A setup token field | `docker compose logs easywall \| grep 'setup token' \| tail -1` — see [First Run]({{ '/docs/installation/first-run/' | relative_url }}#the-setup-token) |
-| A certificate warning | easywall generates its own on first start. Accept it, or [supply your own](#your-own-certificate) |
-| Nothing filtered yet | a fresh container carries no rules, so nothing easywall did is between you and port 12227 |
-| The container reads `unhealthy` | correct, and it clears at your first apply — see [Health check](#the-health-check) |
-| This host's containers | already trusted on a fresh install — `docker.enabled = true` is the default since 2.22; a file from 2.21 keeps what it says; see [Docker Coexistence]({{ '/docs/features/docker/' | relative_url }}) to turn it off or change what it accepts |
+| 一个初始化令牌输入框 | `docker compose logs easywall \| grep 'setup token' \| tail -1`——见[首次运行]({{ '/docs/installation/first-run/' | relative_url }}#the-setup-token) |
+| 一条证书警告 | easywall 在首次启动时自己生成证书。接受它，或者[使用你自己的证书](#your-own-certificate) |
+| 还没有任何东西被过滤 | 全新容器不带规则，所以在你和 12227 端口之间没有任何 easywall 加的东西 |
+| 容器状态是 `unhealthy` | 这是正确的，第一次应用之后就会转好——见[健康检查](#the-health-check) |
+| 本机上的容器 | 全新安装时已被信任——自 2.22 起 `docker.enabled = true` 就是默认值；2.21 留下的文件保持它写的内容；要关掉它或改掉它接受的范围，见[与 Docker 共存]({{ '/docs/features/docker/' | relative_url }}) |
 
-If the page does not load at all, easywall is not what is blocking it. Check the
-host's existing firewall and any provider-level security group for port 12227.
+如果页面完全打不开，那么拦住它的不是 easywall。检查宿主机上已有的防火墙，以及云厂商安全组里 12227 端口的规则。
 
-Now complete the [setup]({{ '/docs/installation/first-run/' | relative_url }}) — it
-covers the SSH port, which is the one answer that can shut you out. Before you do,
-see [Environment Variables]({{ '/docs/environment/' | relative_url }}) for what
-`docker-compose.yml` can set without editing `./easywall-config` at all — and what it
-deliberately cannot.
+接着完成[初始化设置]({{ '/docs/installation/first-run/' | relative_url }})——其中会涉及 SSH 端口，这是唯一可能把你关在门外的答案。动手之前，先看[环境变量]({{ '/docs/environment/' | relative_url }})，了解 `docker-compose.yml` 完全不改 `./easywall-config` 就能设置什么——以及它刻意不能设置什么。
 
-> **`./easywall-config` is yours, and changes owner on first start.** Docker
-> creates it empty. The entrypoint fills it from the defaults inside the image,
-> in the shape the Debian package installs. `web.toml` and `ssl/` go to the
-> container's `easywall` user (uid 100, gid 101); `easywall.toml` goes to root.
-> It is gitignored: the account lives there. **Editing those files on the host
-> needs `sudo`.** In a bind-mounted `/var/lib/easywall` the entrypoint does the
-> same: the directory is root's, and the web process keeps its passkeys and
-> TOTP replay store in `web/` inside it.
+> **`./easywall-config` 归你所有，首次启动时会换掉属主。** Docker 把它建成空的。入口脚本用镜像内的默认值填充它，布局与 Debian 软件包安装的一致。`web.toml` 和 `ssl/` 归容器的 `easywall` 用户（uid 100，gid 101）；`easywall.toml` 归 root。它在 .gitignore 里：账户就存在那儿。**在宿主机上编辑这些文件需要 `sudo`。** 当 `/var/lib/easywall` 是 bind mount 时，入口脚本做同样的事：目录归 root，而 web 进程把自己的通行密钥和 TOTP 重放存储放在其中的 `web/` 里。
 
-> **Upgrading a git checkout from 2.21 or earlier?** compose mounted `./config`,
-> the tracked defaults. Move your files once, before pulling:
+> **从 2.21 或更早版本升级 git 检出？** 那时 compose 挂载的是 `./config`，即受版本控制的默认值。拉取之前，先把文件搬一次：
 >
 > ```bash
 > docker compose down
@@ -62,31 +45,24 @@ deliberately cannot.
 > docker compose up -d
 > ```
 >
-> Your existing `easywall.toml` is moved as-is: whatever it already says for
-> `docker.enabled` is kept, not replaced by the new default.
-> Skip it and the container starts a fresh first run — which the setup token
-> keeps anyone else from claiming.
+> 现有的 `easywall.toml` 原样搬走：它对 `docker.enabled` 写了什么就保留什么，不会被新默认值替换。跳过这一步，容器会开始一次全新的首次运行——而初始化令牌确保别人无法抢先认领。
 
-## Reaching it from elsewhere
+## 从其他地方访问
 
-Direct access — `https://<server>:12227` from your own machine — is the
-intended path. It is safe to leave open: `/firstrun` now needs the setup
-token from the container's own log, not merely being first there. Two more
-routes, if a firewall or a provider security group closes that port for
-everyone but you:
+直接访问——从你自己的机器打开 `https://<server>:12227`——是推荐的路径。把它开着是安全的：`/firstrun` 现在需要容器自己日志里的初始化令牌，光抢先访问并不够。如果防火墙或云厂商安全组把该端口对除你之外的所有人关闭，还有两条路：
 
-| Route | Command | Watch for |
+| 方式 | 命令 | 注意 |
 |---|---|---|
-| An SSH tunnel | `ssh -L 12227:127.0.0.1:12227 user@server`, then open `https://127.0.0.1:12227` | `administratively prohibited` names `sshd`'s `AllowTcpForwarding no` — not an easywall fault |
-| A reverse proxy | see [Behind a Reverse Proxy]({{ '/docs/installation/reverse-proxy/' | relative_url }}) | a proxy address that is SNAT'd or on an overlay network needs its real address read from the [audit log]({{ '/docs/features/audit-log/' | relative_url }}) and listed in `trusted_proxies` |
+| 一条 SSH 隧道 | `ssh -L 12227:127.0.0.1:12227 user@server`，然后打开 `https://127.0.0.1:12227` | `administratively prohibited` 说明 `sshd` 设了 `AllowTcpForwarding no`——不是 easywall 的问题 |
+| 一个反向代理 | 见[反向代理之后]({{ '/docs/installation/reverse-proxy/' | relative_url }}) | 经 SNAT 或位于 overlay 网络的代理地址，需要从[审计日志]({{ '/docs/features/audit-log/' | relative_url }})读出真实地址，并写进 `trusted_proxies` |
 
-## What must persist
+## 必须持久化的内容
 
-| Path in the container | Holds | Without it |
+| 容器内路径 | 存放 | 没有它会怎样 |
 |---|---|---|
-| `/etc/easywall` | `easywall.toml`, `web.toml`, the certificate | the setup starts over |
-| `/var/lib/easywall` | `rules.json`, the apply state, passkeys | every rule is gone |
-| `/var/log/easywall` | `audit.log`, `packets.log` (with `persist = true`) | the audit trail and the refused-packet history start empty at every update |
+| `/etc/easywall` | `easywall.toml`、`web.toml`、证书 | 初始化会从头再来一遍 |
+| `/var/lib/easywall` | `rules.json`、应用状态、通行密钥 | 所有规则都没了 |
+| `/var/log/easywall` | `audit.log`、`packets.log`（当 `persist = true`） | 审计记录和被拒数据包历史在每次更新后都从空开始 |
 
 ```bash
 docker run -d --name easywall --network host --cap-add NET_ADMIN \
@@ -96,88 +72,67 @@ docker run -d --name easywall --network host --cap-add NET_ADMIN \
   ghcr.io/jp1337/easywall:latest
 ```
 
-Without the mount, Docker's `VOLUME` directive gives every recreated container a
-new, empty anonymous volume, and the history in it is gone after the next update.
+没有这个挂载时，Docker 的 `VOLUME` 指令会给每个重建的容器一个新的空匿名卷，其中的历史在下次更新之后就没了。
 
-## The health check
+## 健康检查 {#the-health-check}
 
-The image carries a `HEALTHCHECK` that fetches `/healthz` every ten seconds, and
-`docker-compose.yml` carries the same check under `healthcheck:`. Since 2.19
-there are two definitions rather than one, because podman's default image
-format has no place to put the first — see [Podman](#podman) below. A test
-keeps them identical.
+镜像自带一个 `HEALTHCHECK`，每十秒请求一次 `/healthz`；`docker-compose.yml` 在 `healthcheck:` 下有同样的检查。自 2.19 起定义有两份而不是一份，因为 podman 的默认镜像格式没有地方放第一份——见下面的 [Podman](#podman)。有测试保证两者一致。
 
 ```bash
 docker compose ps                     # healthy / unhealthy
 docker exec easywall easywall-core health
 ```
 
-It reports **unhealthy while the firewall is not filtering** — a fresh container,
-a deleted table, a dead web process, or a core that stopped answering. That is
-new: for a year the check looked at the core's socket, so a container whose
-interface had died stayed *Up*.
+**只要防火墙没有在过滤，它就报 unhealthy**——全新容器、被删掉的表、死掉的 web 进程，或者不再应答的 core。这是新行为：有整整一年，检查只看 core 的 socket，于是界面已经死掉的容器仍然显示 *Up*。
 
-Two consequences worth knowing before you meet them:
+有两个后果，最好在遇到之前就知道：
 
-- **`depends_on: condition: service_healthy` on easywall waits for ever** on a
-  container that has never applied rules. Apply once, or drop the condition.
-- **A `degraded` firewall stays healthy.** It is still filtering, and a restart
-  fixes no cause of it. [Health Check]({{ '/docs/features/health/' | relative_url }})
-  has the states, the exit codes, and how to let a monitoring host read
-  `/healthz`.
+- **对 easywall 设 `depends_on: condition: service_healthy`，在一个从未应用过规则的容器上会永远等待。** 先应用一次，或者去掉这个条件。
+- **`degraded` 的防火墙仍然算健康。** 它还在过滤，而重启解决不了它的任何成因。[健康检查]({{ '/docs/features/health/' | relative_url }})列出了各种状态、退出码，以及如何让一台监控主机读取 `/healthz`。
 
-## Podman
+## Podman {#podman}
 
-**`podman compose up -d` needs nothing extra.** `docker-compose.yml` declares its
-own `healthcheck:` block since 2.19, so the container gets one whether or not the
-image does.
+**`podman compose up -d` 不需要额外操作。** 自 2.19 起 `docker-compose.yml` 自己声明了 `healthcheck:` 块，所以无论镜像有没有，容器都会有一份。
 
-**A plain `podman build` + `podman run` still needs `--format docker`:**
+**直接 `podman build` 加 `podman run` 仍然需要 `--format docker`：**
 
 ```bash
 podman build --format docker -t easywall .
 podman run -d --network host --cap-add NET_ADMIN easywall
 ```
 
-**Without it, the image carries no health check and the build still succeeds.**
-OCI is podman's default image format and has no healthcheck field, so
-`podman build` exits `0` and leaves `HealthCheck: null`. A plain `podman run`
-has no compose file to fall back on here. Check what you got:
+**不加它，镜像就不带健康检查，而构建照样成功。** OCI 是 podman 的默认镜像格式，没有 healthcheck 字段，所以 `podman build` 退出码为 `0`，留下 `HealthCheck: null`。直接 `podman run` 时这里也没有 compose 文件可回退。检查你拿到了什么：
 
 ```bash
 podman image inspect --format '{% raw %}{{ .HealthCheck }}{% endraw %}' easywall
 ```
 
-`supervisorctl` works inside the container, over a root-only socket, if you need
-to stop or start one process without restarting both:
+需要只停或启动其中一个进程而不重启两个时，`supervisorctl` 在容器内可用，走的是仅限 root 的 socket：
 
 ```bash
 docker exec easywall supervisorctl status
 ```
 
-## Where to pull from
+## 从哪里拉取
 
-The same `linux/amd64` + `linux/arm64` image, pushed to all three by CI. Public, no
-authentication.
+同一个 `linux/amd64` + `linux/arm64` 镜像，由 CI 推送到这三处。公开，无需认证。
 
-| Registry | Image |
+| 镜像仓库 | 镜像 |
 |---|---|
 | GitHub Container Registry | `ghcr.io/jp1337/easywall` |
 | Docker Hub | `docker.io/kermit1337/easywall` |
 | Quay.io | `quay.io/jp1337/easywall` |
 
-> **Quay is behind.** The publishing token is being rejected, so that mirror is
-> skipped until it is replaced, and it does not have the recent releases. Use
-> GHCR or Docker Hub.
+> **Quay 落后了。** 发布令牌正被拒绝，因此该镜像源在替换之前会被跳过，它也没有最近的版本。请用 GHCR 或 Docker Hub。
 
-## Which tag
+## 选哪个标签 {#which-tag}
 
-| Tag | Moves | For |
+| 标签 | 何时移动 | 适用于 |
 |---|---|---|
-| `:latest` | on **stable** releases only — a release candidate does not move it | **production** |
-| `:vX.Y.Z` | never | pinning, e.g. `v{{ site.version }}` |
-| `:edge` | after every green build on `main` | tracking development, [demo mode]({{ '/docs/installation/demo/' | relative_url }}) |
-| `:sha-<commit>` | never | rollback and debugging |
+| `:latest` | 只在**稳定版**发布时移动——候选版本不会移动它 | **生产环境** |
+| `:vX.Y.Z` | 从不移动 | 固定版本，例如 `v{{ site.version }}` |
+| `:edge` | `main` 上每次构建通过之后 | 跟踪开发版、[演示模式]({{ '/docs/installation/demo/' | relative_url }}) |
+| `:sha-<commit>` | 从不移动 | 回滚与调试 |
 
 ```yaml
 # docker-compose.override.yml — pin a version
@@ -186,11 +141,9 @@ services:
     image: ghcr.io/jp1337/easywall:v{{ site.version }}
 ```
 
-## Why host networking
+## 为什么用 host 网络
 
-nftables acts on the host's network namespace. In its own namespace the container
-would filter only its own traffic, which is not what you asked for. `NET_ADMIN` is
-what lets it issue the netlink calls that reach host tables.
+nftables 作用于宿主机的网络命名空间。在它自己的命名空间里，容器只会过滤自己的流量，那不是你要的。`NET_ADMIN` 让它能发出触达宿主机表的 netlink 调用。
 
 ```yaml
 network_mode: host
@@ -200,28 +153,18 @@ security_opt:
   - no-new-privileges:true
 ```
 
-`NET_ADMIN` and nothing beyond it. The shipped compose file also asked for
-`SYS_MODULE` — the capability to load kernel modules. From a container that
-already shares the host's network, that capability is host root under another
-name. This page never listed it. It is gone; applying a full rule set was verified without it. If
-`nf_tables` is not loaded, load it on the host with `modprobe nf_tables` — a host
-already running nftables has it.
+只要 `NET_ADMIN`，别的都不要。随附的 compose 文件还曾要求 `SYS_MODULE`——加载内核模块的能力。对一个已经共享宿主机网络的容器来说，这项能力就等于换了名字的宿主机 root。本页从未列出过它。它已经去掉了；不加它也能应用完整规则集，这一点验证过。如果 `nf_tables` 没加载，在宿主机上执行 `modprobe nf_tables`——已经在跑 nftables 的主机自然有它。
 
-The packet log's `nfnetlink_log` needs the same kind of load, and gets it the
-same way. The kernel requests it by name the first time an NFLOG group
-binds, triggered by nothing more than the `NET_ADMIN` this container
-already has. Only a host with module loading disabled entirely falls back
-to the kernel log instead.
+数据包日志的 `nfnetlink_log` 需要同样的加载方式，也以同样的方式得到。第一次有 NFLOG 组绑定时，内核会按名字请求它，触发条件不过是这个容器已经拥有的 `NET_ADMIN`。只有完全禁用模块加载的主机才会回退到内核日志。
 
-This is also why easywall in a container still coexists with Docker's own rules —
-it owns [`table inet easywall`]({{ '/docs/features/docker/' | relative_url }}) and nothing else.
+这也是容器里的 easywall 仍能与 Docker 自己的规则共存的原因——它只占有 [`table inet easywall`]({{ '/docs/features/docker/' | relative_url }})，别的都不碰。
 
-## Needs
+## 需求
 
-- Docker Engine 24+, Compose v2
-- A Linux host with nftables
+- Docker Engine 24+、Compose v2
+- 一台带 nftables 的 Linux 宿主机
 
-## Your own certificate
+## 使用自己的证书 {#your-own-certificate}
 
 ```yaml
 volumes:
@@ -236,36 +179,23 @@ cert = "/etc/letsencrypt/live/example.com/fullchain.pem"
 key  = "/etc/letsencrypt/live/example.com/privkey.pem"
 ```
 
-**`tls.acme` is not supported in this image.** The web process drops to an
-unprivileged user with no path to reacquire `CAP_NET_BIND_SERVICE`.
-`no-new-privileges:true` is deliberate hardening this project will not trade
-away for one feature. Run your own ACME client (certbot, or Let's Encrypt's
-own container) against the host and mount its output the way shown above
-instead.
+**这个镜像不支持 `tls.acme`。** web 进程会降权到无特权用户，没有任何途径重新获得 `CAP_NET_BIND_SERVICE`。`no-new-privileges:true` 是本项目刻意保留的加固措施，不会为了一个功能放弃。请改为在宿主机上运行你自己的 ACME 客户端（certbot，或 Let's Encrypt 官方容器），并按上面的方式挂载它的输出。
 
-> **Passkeys need `tls.hostname` too.** It is the WebAuthn Relying Party ID,
-> set separately from the certificate above — see
-> [Configuration → `[tls]`]({{ '/docs/configuration/' | relative_url }}#tls).
+> **通行密钥同样需要 `tls.hostname`。** 它是 WebAuthn 的 Relying Party ID，与上面的证书分开设置——见[配置 → `[tls]`]({{ '/docs/configuration/' | relative_url }}#tls)。
 
-## Updating
+## 更新
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-A recreate restores whatever rules were last applied, with **no acceptance
-window** — nothing catches a restore that would lock you out, the way an
-apply through the interface does. Pull and recreate on purpose, not on a
-timer.
+重建容器会恢复最后一次应用的规则，**没有确认窗口**——没有任何机制能拦下会让你失联的恢复，而通过界面应用时是有的。拉取和重建要刻意为之，不要放在定时器里。
 
-For production, pin `:vX.Y.Z` (see [Which tag](#which-tag)) and update the
-same way. [Watchtower](https://containrrr.dev/watchtower/), the usual way to
-automate this, is archived with no release since 2023 — skip it, or point it
-at nothing looser than a pinned tag you bump yourself.
+生产环境请固定 `:vX.Y.Z`（见[选哪个标签](#which-tag)），并以同样方式更新。自动化的常见做法 [Watchtower](https://containrrr.dev/watchtower/) 已归档，自 2023 年起没有发布——跳过它，或者让它指向的标签不比你自己升级的固定标签更宽松。
 
-## Checking what you pulled
+## 核对拉到的镜像
 
-Every image carries the source commit in an OCI label:
+每个镜像都在一个 OCI 标签里带着源码提交：
 
 ```bash
 docker pull ghcr.io/jp1337/easywall:latest
@@ -274,18 +204,6 @@ docker image inspect \
   ghcr.io/jp1337/easywall:latest
 ```
 
-> **This used to read `.Manifest.Annotations`, where the value has never been.**
-> A label goes into the image *config*; manifest annotations are a different
-> field that only carries base-image and creation keys. Checked by building an
-> image with `--label org.opencontainers.image.revision=abc123` and reading the
-> pushed OCI layout: `manifest annotations` held `image.base.name` and
-> `image.created`, and `abc123` was in `config.Labels`. So the command printed
-> nothing and looked like an image with no provenance. Release images genuinely
-> had none either — the labels are set in the `Dockerfile` now, which is the one
-> file all three build paths share.
+> **这里以前读的是 `.Manifest.Annotations`，那个值从来不在那儿。** 标签写入的是镜像的 *config*；manifest annotations 是另一个字段，只承载基础镜像与创建相关的键。验证方式是构建一个带 `--label org.opencontainers.image.revision=abc123` 的镜像，再读取推送后的 OCI 布局：`manifest annotations` 里是 `image.base.name` 和 `image.created`，而 `abc123` 在 `config.Labels` 里。所以那条命令什么都不打印，看起来像个没有来源信息的镜像。发布镜像当时确实也没有——现在标签在 `Dockerfile` 里设置，那是三条构建路径共用的唯一文件。
 
-Compare it against the commit the release tag points at. The workflows that publish
-these images are
-[`release.yml`](https://github.com/jp1337/easywall/blob/main/.github/workflows/release.yml)
-and
-[`publish-edge.yml`](https://github.com/jp1337/easywall/blob/main/.github/workflows/publish-edge.yml).
+把它与发布标签指向的提交对比。发布这些镜像的工作流是 [`release.yml`](https://github.com/jp1337/easywall/blob/main/.github/workflows/release.yml) 和 [`publish-edge.yml`](https://github.com/jp1337/easywall/blob/main/.github/workflows/publish-edge.yml)。

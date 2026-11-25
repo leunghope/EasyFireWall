@@ -1,111 +1,76 @@
 ---
 layout: default
-title: System & Network Settings
-description: The acceptance window that makes a bad rule recoverable, and the Network page that decides what IPv6, routed traffic and Docker are allowed to do.
+title: 系统与网络设置
+description: 让一条坏规则可恢复的确认窗口，以及决定 IPv6、路由流量和 Docker 能做什么的网络页面。
 ---
 
-# System & Network Settings
+# 系统与网络设置
 
-Two pages in the interface, and both decide something the rule pages cannot.
-**System** holds the acceptance window; **Network** holds the three
-dispositions that apply before any rule is consulted.
+界面里的两个页面，它们都决定着规则页面无法决定的事。**系统**承载确认窗口；**网络**承载在任何规则被查询之前就生效的三种处理方式。
 
-## The acceptance window
+## 确认窗口
 
-One idea: how long easywall waits for you to confirm before undoing what
-you just applied.
+一个概念：easywall 在撤销你刚刚应用的东西之前，等你确认多久。
 
 {% include themed-figure.html base="/assets/diagrams/apply-flow" ext="svg"
-   alt="State machine: editing leads to Staged, applying leads to Live, confirming within the window leads to Confirmed, and letting the window expire leads to Rolled back, from where the staged edits are still available." %}
+   alt="状态机：编辑后进入「暂存」；应用后进入「已生效」；在窗口内确认后进入「已确认」；窗口过期则进入「已回滚」，而暂存的编辑仍可从这取用。" %}
 
-## Enabled
+## 启用
 
 | | |
 |---|---|
-| **On** — what the installed `easywall.toml` sets | Every apply starts the timer. Not confirming restores the previous rules |
-| **Off**, and an absent key is off | An apply is final. There is no automatic way back |
+| **开启** —— 安装的 `easywall.toml` 就是这样设置的 | 每次应用都会启动计时器。不确认就会恢复先前的规则 |
+| **关闭**，键不存在也算关闭 | 应用是最终的。没有任何自动回去的方式 |
 
-> **Do not switch this off on a remote host.** A rule that closes your own SSH port
-> leaves console access as the only recovery. The setting exists for machines you can
-> physically reach.
+> **不要在远程主机上关闭它。** 一条关掉你自己 SSH 端口的规则，会让控制台访问成为唯一的补救。这个设置是为你能物理接触到的机器准备的。
 
-> **A file naming only `duration` has no window at all.** `enabled` absent reads as
-> off, so the duration sets the length of something that never opens. The daemon has
-> said so at every start since 2.20.1 — *applies take effect immediately and nothing
-> will undo them*. Add `enabled = true` and reload if you did not mean it.
+> **只写了 `duration` 的文件根本没有窗口。** `enabled` 缺失会读作关闭，所以 duration 设定的是一个永远不会打开的窗口的时长。从 2.20.1 起，守护进程每次启动都会说明这一点 —— *应用立即生效，没有任何东西会撤销它们*。如果不是这个意思，请加上 `enabled = true` 并重新加载。
 
-## Duration
+## 时长
 
-10 to 3600 seconds. The field refuses anything outside that — too short is a lockout,
-too long is an exposure window.
+10 到 3600 秒。该字段会拒绝此范围之外的值 —— 太短会把自己锁死，太长则是一段敞开的暴露窗口。
 
-| | Suits |
+| | 适用 |
 |---|---|
-| 10–30 s | Almost nothing. You will not confirm in time on a slow link |
-| **60–300 s** | **Most cases. Start at 120** |
-| 300–3600 s | Automated pipelines, or a maintenance window with a known slow path |
+| 10–30 秒 | 几乎没有任何场景。在慢速链路上，你来不及确认 |
+| **60–300 秒** | **大多数情况。从 120 开始** |
+| 300–3600 秒 | 自动化流水线，或者已知链路缓慢的维护窗口 |
 
-Long enough to open a second connection and test what you changed; short enough that
-a lockout resolves itself before it costs you the afternoon.
+长到足以打开第二个连接并测试你改了什么；短到一次锁死会在它毁掉你一下午之前自行解决。
 
-## Installation count
+## 安装计数
 
-Off unless you switch it on, here or during the first-run wizard — the full
-request is in [Counting installations]({{ '/docs/configuration/' | relative_url }}#counting-installations).
+默认关闭，除非你在这里或首次运行向导里打开它 —— 完整的请求见[安装计数]({{ '/docs/configuration/' | relative_url }}#counting-installations)。
 
-The public demo at [{{ site.demo_url | remove: 'https://' }}]({{ site.demo_url }})
-reports too — it is switched on there through `EASYWALL_WEB_TELEMETRY`. So the
-number means *installations, including the demo*, not *installations somebody
-runs*.
+[{{ site.demo_url | remove: 'https://' }}]({{ site.demo_url }}) 处的公开演示也会上报 —— 那里是通过 `EASYWALL_WEB_TELEMETRY` 打开的。所以这个数字的含义是*安装数，包含演示站*，而不是*有人在运行的安装数*。
 
-## The Network page
+## 网络页面 {#the-network-page}
 
-Three dispositions, all of them settled before any rule on any other page is
-consulted.
+三种处理方式，它们都在其他任何页面的任何规则被查询之前就已确定。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/settings" ext="png"
-     alt="The Network settings page: an IPv6 card offering filter, leave alone or drop; a Routed traffic card offering route nothing, route these networks with a CIDR list, or leave routed traffic alone; and a Docker card with bridge detection, allowing detected bridges, and a list of additional networks." %}
-  <figcaption>Each card decides something the rule pages cannot express.</figcaption>
+     alt="网络设置页面：一张 IPv6 卡片，提供过滤、不处理或丢弃；一张路由流量卡片，提供不路由任何流量、路由这些网络（配一个 CIDR 列表），或不处理路由流量；以及一张 Docker 卡片，含网桥检测、允许检测到的网桥，以及一份附加网络列表。" %}
+  <figcaption>每张卡片都决定规则页面无法表达的事。</figcaption>
 </figure>
 
-| Card | Decides | Detail |
+| 卡片 | 决定 | 细节 |
 |---|---|---|
-| **IPv6** | whether IPv6 goes through the same rules, past them, or nowhere | [`[ipv6]`]({{ '/docs/configuration/' | relative_url }}#ipv6) |
-| **Routed traffic** | what may cross the `forward` chain — nothing, a named list, or everything | [`[routing]`]({{ '/docs/configuration/' | relative_url }}#routing) |
-| **Docker** | which container networks are allowed, on input *and* forward | [Docker coexistence]({{ '/docs/features/docker/' | relative_url }}) |
+| **IPv6** | IPv6 是走同一套规则、绕过它们，还是无处可去 | [`[ipv6]`]({{ '/docs/configuration/' | relative_url }}#ipv6) |
+| **路由流量** | 什么可以穿过 `forward` 链 —— 什么都不行、一份指定列表，还是全部 | [`[routing]`]({{ '/docs/configuration/' | relative_url }}#routing) |
+| **Docker** | 允许哪些容器网络，入站*和*转发都算 | [Docker 共存]({{ '/docs/features/docker/' | relative_url }}) |
 
-> **The two lists are not the same list.** Docker's networks cross the `forward`
-> chain whatever the routing mode says, because switching coexistence on is
-> already that statement. `routing.networks` is for everything that routes and is
-> not Docker — a VPN gateway, a second interface.
+> **这两份列表不是同一份列表。** 无论路由模式怎么说，Docker 的网络都会穿过 `forward` 链，因为打开共存本身就已经是那个声明。`routing.networks` 是给所有会路由且不是 Docker 的东西用的 —— 一个 VPN 网关、第二个接口。
 
-Both take **one CIDR network per line** — `192.168.1.0/24`, not `192.168.1.5` — and,
-like the address lists, treat a blank line or a line beginning with `#` as a comment.
-An entry that is not a network is named on save rather than stored. The same
-check runs when the file is read, so a hand-edited network cannot reach the
-kernel as nothing.
+两者都接受**每行一个 CIDR 网络** —— `192.168.1.0/24`，而不是 `192.168.1.5` —— 并且和地址列表一样，把空行或以 `#` 开头的行当作注释。不是网络的条目会在保存时被指出，而不是被存下来。读取文件时会运行同一套检查，所以手工编辑的网络不会以空值的身份到达内核。
 
-## Saving
+## 保存
 
-A setting is saved to the daemon's configuration immediately and reaches the
-kernel at the next [apply]({{ '/docs/features/apply/' | relative_url }}). Since
-2.10 that counts as a pending change: the dashboard's *Unapplied changes* chip
-includes it and the apply screen lists it by its key, `ipv6.mode filter → block`.
-A toast confirms the save itself. No restart, and the Save button stays for
-browsers with JavaScript disabled. Both pages behave the same way, as does
-[options]({{ '/docs/features/filters/' | relative_url }}).
+设置会立即保存到守护进程的配置里，并会在下一次[应用]({{ '/docs/features/apply/' | relative_url }})时到达内核。从 2.10 起，这算作一项待处理的更改：仪表盘上的*未应用的更改*标签会包含它，应用页面会按它的键列出它，`ipv6.mode filter → block`。保存本身由一条 toast 确认。不需要重启，而且对禁用了 JavaScript 的浏览器，保存按钮仍然保留。两个页面的行为相同，[选项]({{ '/docs/features/filters/' | relative_url }})也是如此。
 
-Editing the file directly works too. `SIGHUP` reloads `[firewall]`,
-`[acceptance]`, `[ipv6]`, `[docker]`, `[routing]` and `[usage]` without dropping
-the socket. The paths are bound at startup, and a change to one is logged and
-ignored until a restart. A file that does not parse or does not validate is
-refused and the running configuration stays — a typo must not disarm anything.
+直接编辑文件也可以。`SIGHUP` 会重新加载 `[firewall]`、`[acceptance]`、`[ipv6]`、`[docker]`、`[routing]` 和 `[usage]`，而不会断开套接字。路径在启动时绑定，改动其中之一会被记录并忽略，直到重启。无法解析或无法通过校验的文件会被拒绝，运行中的配置保持不变 —— 一个拼写错误不应该解除任何防护。
 
-A restart does not apply anything either. A boot, `easywall-core resume` and the
-Docker reconciler enforce the configuration last applied, so an edited
-`[firewall]`, `[ipv6]`, `[docker]` or `[routing]` stays pending until an apply,
-with its acceptance window.
+重启同样不会应用任何东西。启动、`easywall-core resume` 和 Docker 协调器执行的都是上次应用过的配置，所以编辑过的 `[firewall]`、`[ipv6]`、`[docker]` 或 `[routing]` 会一直处于待处理状态，直到一次带确认窗口的应用。
 
 ```toml
 [acceptance]
@@ -117,14 +82,12 @@ duration = 120   # seconds
 sudo systemctl reload easywall-core   # or: kill -HUP $(pidof easywall-core)
 ```
 
-> **This did not work before 2.5.0.** Nothing handled `SIGHUP`, and the default
-> disposition for an unhandled one is to terminate — so following this page shut the
-> core down instead of reloading it.
+> **这在 2.5.0 之前不起作用。** 没有任何代码处理 `SIGHUP`，而未处理的默认处置是终止 —— 所以照着这页做，会把 core 关掉而不是重新加载它。
 
-## When it does not behave
+## 行为不符合预期时
 
-| Symptom | Cause |
+| 现象 | 原因 |
 |---|---|
-| The apply used the old duration | A running timer keeps the value it started with. The next apply reads the current one |
-| The window expired before you could confirm | Raise the duration. The rollback is in the [audit log]({{ '/docs/features/audit-log/' | relative_url }}) as `apply_rolledback` with detail `timeout` |
-| The field rejects a value | Outside 10–3600 |
+| 应用用的是旧时长 | 正在运行的计时器保留它启动时的值。下一次应用才会读取当前值 |
+| 窗口在你确认之前就过期了 | 提高时长。回滚在[审计日志]({{ '/docs/features/audit-log/' | relative_url }})里记为 `apply_rolledback`，detail 为 `timeout` |
+| 字段拒绝了某个值 | 超出 10–3600 |

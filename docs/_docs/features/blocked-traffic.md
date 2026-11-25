@@ -1,158 +1,122 @@
 ---
 layout: default
-title: Blocked traffic
-description: What the firewall refused, newest first — filtered, drilled into, and acted on without leaving the row.
+title: 被拦截的流量
+description: 防火墙拒绝了什么，最新的在前 —— 可筛选、可逐条展开，并且不必离开这一行就能处理。
 ---
 
-# Blocked traffic
+# 被拦截的流量
 
-The page shows every packet a log switch refused, newest first, and lets you
-allowlist, blocklist or open a port from the row that refused it.
+这个页面按最新的在前，列出每一个被日志开关判定为拒绝的数据包，并让你直接在拒绝它的那一行上放行、拦截或开放端口。
 
-## Turn logging on
+## 打开日志
 
-Every switch is off by default — nothing appears here until at least one is on.
-Open [**Options → Logging**]({{ '/docs/features/filters/' | relative_url }}#logging)
-and switch one on. The two worth starting with:
+每个开关默认都是关的 —— 至少要打开一个，这里才会出现内容。打开[**选项 → 日志**]({{ '/docs/features/filters/' | relative_url }}#logging)并打开其中一个。值得先开的两个：
 
-| Switch | Logs |
+| 开关 | 记录什么 |
 |---|---|
-| `log_blocked_connections` | Everything the final policy drops — the broadest one |
-| `ssh_brute_force_log` | Connections over the SSH rate — the one most hosts get hit with first |
+| `log_blocked_connections` | 最终策略丢弃的一切 —— 范围最广的一个 |
+| `ssh_brute_force_log` | 超出 SSH 速率的连接 —— 大多数主机最先撞上的就是这个 |
 
-## Read a row
+## 读一行
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/blocked" ext="png"
-     alt="The Blocked traffic page: a filter bar above a table of refused packets, each row carrying the actions its rule allows and a details disclosure." %}
-  <figcaption>Seven columns cover a triage glance (six with the country lookup off); everything else is one click into Details.</figcaption>
+     alt="被拦截的流量页面：一张被拒数据包表格上方有筛选栏，每一行带有其规则所允许的操作，以及一个详情展开区。" %}
+  <figcaption>七列足以支撑一眼初判（关掉国家/地区查询后是六列）；其余内容点一下「详情」就能看到。</figcaption>
 </figure>
 
-| Column | Shows |
+| 列 | 显示什么 |
 |---|---|
-| Time | When the packet arrived, local time — to the second today, without seconds beyond that; hover for the exact instant |
-| Interface | The device it arrived on |
-| Source → Destination | Address, and the destination port if there is one |
-| Country | Where the source's address block is registered: flag and code — tap the code for the name; a phone shows the name. `—` for none. Needs the [country lookup](#where-it-comes-from) |
-| Proto | `tcp`, `udp`, `icmp`, `icmpv6`, or a bare protocol number |
-| Rule | Which of the eleven switches refused it, or *Another rule*. A module's name links to its switch on Options; a *Default drop* says why underneath |
+| 时间 | 数据包到达的时刻，本地时间 —— 今天的精确到秒，更早的不带秒；悬停可看确切时刻 |
+| 接口 | 它到达的设备 |
+| 来源 → 目标 | 地址，若有目标端口则一并显示 |
+| 国家/地区 | 源地址所属地址块的注册地：旗帜和代码 —— 点击代码显示名称；手机上直接显示名称。没有则为 `—`。需要[国家/地区查询](#where-it-comes-from) |
+| 协议 | `tcp`、`udp`、`icmp`、`icmpv6`，或裸的协议号 |
+| 规则 | 十一个开关中哪一个拒绝了它，或*其他规则*。模块名会链接到选项页上对应的开关；*默认丢弃*会在下面说明原因 |
 
-**Details** opens the rest: exact time, TCP flags, ICMP type and code, connection state, TTL, source
-port, chain and packet mark — whichever of these the packet carried.
+**详情**会展开其余内容：确切时间、TCP 标志、ICMP 类型与代码、连接状态、TTL、源端口、链和数据包标记 —— 该数据包带了哪些就显示哪些。
 
-## Live
+## 实时
 
-The table asks for new rows every five seconds and shows them on top, marked
-with a rule on the left until the next ones arrive. It pauses while you point
-at the table or work in it, so no row slides away under the cursor. **Pause**
-stops it until you press **Resume**. The line beside the button says whether it
-is live and, if not, why. Resuming catches up.
+表格每五秒请求一次新行，并把它们显示在顶部；在下一批到来之前，新行左侧带一道标记线。当你把鼠标指在表格上或在其中操作时它会暂停，所以没有哪一行会在光标底下溜走。**暂停**会让它停下，直到你按**继续**。按钮旁边那行会说明它是否在实时更新；若没有，说明为什么。恢复时会补上落下的内容。
 
-## Where it comes from
+## 数据来自哪里 {#where-it-comes-from}
 
-The **Country** column is on by default. To switch it off:
+**国家/地区**列默认开启。要关掉它：
 
 ```toml
 country_lookup = false   # web.toml; or EASYWALL_WEB_COUNTRY_LOOKUP=false
 ```
 
-Restart `easywall-web`; with it off, no request is made. **An upgraded host
-starts fetching once a day unless you switch it off.** `easywall-web` downloads
-[ipverse/country-ip-blocks](https://github.com/ipverse/country-ip-blocks) (CC0,
-1.75 MB, 238 countries, 248 507 prefixes) from `github.com`, which hands it out
-from `release-assets.githubusercontent.com` — no other host — and keeps it in
-`<data_dir>/web/countries.tar.gz`. After a failure the old list stays in use
-and the download is retried from an hour on. The line under the table says what
-is loaded and when it was checked.
+重启 `easywall-web`；关掉之后不会再发出任何请求。**升级过的主机每天会拉取一次，除非你把它关掉。** `easywall-web` 从 `github.com` 下载 [ipverse/country-ip-blocks](https://github.com/ipverse/country-ip-blocks)（CC0，1.75 MB，238 个国家/地区，248 507 个前缀），由 `release-assets.githubusercontent.com` 分发 —— 没有别的来源 —— 并把内容保存在 `<data_dir>/web/countries.tar.gz`。失败之后旧的列表继续使用，并从一小时后开始重试下载。表格下方那行会说明加载了什么、什么时候校验过。
 
-| Cost and limits | Measured or enforced |
+| 开销与限制 | 实测或强制 |
 |---|---|
-| Table in memory | about 4 MB; `easywall-web` about +10 MB after a download |
-| Lookup per row | about 70 ns |
-| Archive / unpacked | at most 8 MiB / 64 MiB |
-| One country file | at most 2 MiB |
-| Prefixes in all | at most 524 288 |
-| Skipped | prefixes broader than IPv4 /4 or IPv6 /16 |
+| 内存中的表 | 约 4 MB；下载后 `easywall-web` 约多占 10 MB |
+| 每行查询 | 约 70 ns |
+| 归档 / 解包后 | 最多 8 MiB / 64 MiB |
+| 单个国家/地区文件 | 最多 2 MiB |
+| 全部前缀 | 最多 524 288 |
+| 跳过 | 比 IPv4 /4 或 IPv6 /16 更宽的前缀 |
 
-**A registration is not a location.** The column says which country the
-address block is registered to. VPNs, cloud regions and Tor exits do not follow
-it. Only the web process holds the list; nothing it says reaches the firewall
-until you stage a country and apply.
+**注册地不是位置。** 这一列说的是该地址块注册在哪个国家/地区。VPN、云区域和 Tor 出口并不遵从它。只有 Web 进程持有这份列表；在你把某个国家/地区暂存并应用之前，它说的任何内容都不会到达防火墙。
 
-## Why a default drop refused it
+## 为什么是默认丢弃拒绝了它
 
-*Default drop* means no switch refused the packet — nothing let it in. The line
-under it names what was missing, read from the rules applied **now**:
+*默认丢弃*意味着没有哪个开关拒绝了它 —— 是没有任何东西让它进来。下面那行会读自**当前**已应用的规则，说明缺了什么：
 
-| The line reads | Because |
+| 该行写着 | 因为 |
 |---|---|
-| *Port 993/tcp is not open.* | no port rule covers it |
-| *993/tcp is open only for 10.0.0.0/8.* | a rule covers it, for other sources |
-| *… open only for traffic forwarded to a container* | the rule's scope is `forwarded` |
-| *Pings are switched off under Options.* | [Answer pings]({{ '/docs/features/filters/' | relative_url }}#answering-pings) is off, in either family |
-| *ICMP type 13 is not accepted.* | a type nothing accepts on its own — see [Always on]({{ '/docs/features/filters/' | relative_url }}#always-on) |
-| *… now — this arrived before it was.* | the rules changed since: the port, the allowlist, the blocklist, an ICMP type or the IPv6 mode |
+| *端口 993/tcp 未开放。* | 没有端口规则覆盖它 |
+| *993/tcp 仅对 10.0.0.0/8 开放。* | 有规则覆盖它，但面向其他来源 |
+| *……仅对转发到容器的流量开放* | 该规则的作用域是 `forwarded` |
+| *在选项里 ping 是关闭的。* | [响应 ping]({{ '/docs/features/filters/' | relative_url }}#answering-pings)关着，两个协议族都是 |
+| *ICMP 类型 13 不被接受。* | 没有任何东西单独接受这种类型 —— 见[始终开启]({{ '/docs/features/filters/' | relative_url }}#always-on) |
+| *……现在开放 —— 这个包是在开放之前到达的。* | 规则此后变过：端口、允许列表、拦截列表、某个 ICMP 类型或 IPv6 模式 |
 
-No line appears while the applied rules cannot be read.
+读不到已应用的规则时，这一行不显示。
 
-## Narrow it down
+## 缩小范围
 
-Seven filters sit above the table — source, destination, port, protocol, rule,
-interface, country. Clicking an address, a port or an interface in a row filters
-to it directly. The filter is the URL's query string, so the view is exactly what
-you bookmark or paste into a message to someone else.
+表格上方有七个筛选器 —— 来源、目标、端口、协议、规则、接口、国家/地区。点某一行里的地址、端口或接口，就会直接筛选到它。筛选条件就是 URL 的查询串，所以你看到的视图正是你收藏的、或粘给别人消息里的那个。
 
-**Country** searches the whole log, not the 200 rows on screen, and the count
-beside the title is over the whole log too. *Only this country*, under a
-country's name in its row, opens the same view and keeps the other filters.
-The field is absent while the [country lookup](#where-it-comes-from) is off or
-has not loaded yet. An `easywall-core` older than `easywall-web` cannot page
-its log; the view then holds only the newest 1 000 packets, and says so.
+**国家/地区**搜索整份日志，而不只是屏幕上的 200 行，标题旁的计数同样是整份日志的。国家/地区所在行里，名称下方的*仅此国家/地区*会打开同一个视图并保留其他筛选条件。当[国家/地区查询](#where-it-comes-from)关闭或尚未加载完成时，这个输入框不出现。比 `easywall-web` 更旧的 `easywall-core` 无法对它的日志分页；此时视图里只有最新的 1 000 个数据包，并且会如实说明。
 
-## Act on a row
+## 对某一行采取操作
 
-Four actions per row, only where they make sense — *Open* needs a destination
-port and a protocol the firewall can open:
+每行四个操作，只在讲得通的地方出现 —— *开放*需要一个目标端口和一个防火墙能开放的协议：
 
-| Action | Does |
+| 操作 | 做什么 |
 |---|---|
-| **Allowlist** | Stages the source address on the allowlist |
-| **Blocklist** | Stages the source address on the blocklist |
-| **Open *port*** | Stages a port rule for the packet's destination port and protocol |
-| **Block country** | Stages the source's country, as [Block a country]({{ '/docs/features/countries/' | relative_url }}) does, at most 30. Only for a country not on yet. A forwarded packet is offered no action |
+| **加入允许列表** | 把源地址暂存到允许列表 |
+| **加入拦截列表** | 把源地址暂存到拦截列表 |
+| **开放*端口*** | 为该数据包的目标端口和协议暂存一条端口规则 |
+| **拦截国家/地区** | 像[拦截国家/地区]({{ '/docs/features/countries/' | relative_url }})那样，把源地址所属国家/地区暂存，最多 30 个。仅对尚未启用的国家/地区可用。转发数据包不提供任何操作 |
 
-| The packet was refused by | Offered | Why not the others |
+| 数据包被谁拒绝 | 提供 | 为什么没有其他操作 |
 |---|---|---|
-| Default drop | allowlist · blocklist · open the port | — |
-| Bogon filter | allowlist · blocklist | a port rule runs after the filter |
-| Another rule (your custom rules) | allowlist · blocklist | opening the port would override a rule you wrote |
-| The blocklist | a link to the blocklist | the blocklist is checked before the allowlist |
-| A protection module (SSH, SYN, ICMP, RST, port scan, invalid, fragment) | blocklist | modules run before the allowlist and the ports |
+| 默认丢弃 | 允许列表 · 拦截列表 · 开放端口 | — |
+| 无效地址过滤 | 允许列表 · 拦截列表 | 端口规则在过滤器之后运行 |
+| 其他规则（你的自定义规则） | 允许列表 · 拦截列表 | 开放端口会覆盖你自己写的规则 |
+| 拦截列表 | 一个指向拦截列表的链接 | 拦截列表在允许列表之前被检查 |
+| 某个防护模块（SSH、SYN、ICMP、RST、端口扫描、无效、分片） | 拦截列表 | 模块在允许列表和端口之前运行 |
 
-The table pauses while you point at it or work in it, and catches up when you leave.
+当你把鼠标指在表格上或在其中操作时它会暂停，离开后补上落下的内容。
 
-**They stage. They never apply.** A staged count appears beside the page title
-and links to [Apply]({{ '/docs/features/apply/' | relative_url }}); nothing
-reaches the kernel, and no acceptance window starts, until you go there.
+**它们只暂存，从不应用。** 页面标题旁会出现一个暂存计数，并链接到[应用]({{ '/docs/features/apply/' | relative_url }})；在你到那里之前，不会有任何东西到达内核，也不会有确认窗口开始计时。
 
-> **It will not let you lock yourself out.** Blocklisting the address you are
-> signed in from — or, behind a reverse proxy, the proxy's address — is refused
-> with the reason, before anything is staged. The same check the apply screen
-> runs.
+> **它不会让你把自己锁在外面。** 把你当前登录所用的地址 —— 或者在反向代理后面时，代理的地址 —— 加入拦截列表会被拒绝并给出原因，在任何东西被暂存之前。这与应用页面跑的是同一套检查。
 
-## When the page is empty
+## 页面为空时
 
-| State | Reads |
+| 状态 | 显示 |
 |---|---|
-| The core could not be read | *Core daemon unreachable:* and the error |
-| Nothing switched on | *Nothing is being logged* — with a link to the switches |
-| On, nothing refused since *time* | *Nothing has been refused since …* |
-| Not running, never bound | a banner naming the NFLOG group and why the bind failed; logged packets go to the kernel log instead |
-| Not running, stopped after running | a banner saying so; nothing is logged anywhere — not here, not the kernel log — until `easywall-core` restarts |
+| 读不到 core | *无法连接 core 守护进程：*以及错误信息 |
+| 什么都没打开 | *当前没有在记录* —— 并附一个指向开关的链接 |
+| 开着，自*某时刻*以来没有拒绝过任何东西 | *自……以来没有拒绝过任何内容* |
+| 没有运行，从未绑定 | 一条横幅，指明 NFLOG 组以及绑定失败的原因；被记录的数据包改为进入内核日志 |
+| 没有运行，运行过之后停了 | 一条横幅说明情况；在 `easywall-core` 重启之前，任何地方都不记录 —— 这里没有，内核日志也没有 |
 
-## What it does not show
+## 它不显示什么
 
-Accepted traffic, bytes per session, a location and reverse DNS. It is a list
-of packets the firewall refused, decoded from what NFLOG hands the core. The
-country column is the one exception, and it is a registration looked up in the
-list this host downloaded — never a request per address.
+被接受的流量、每会话字节数、地理位置和反向 DNS。它是一份防火墙拒绝过的数据包清单，由 NFLOG 交给 core 的内容解码而来。国家/地区列是唯一的例外，而且它是在本机下载的那份列表里查出来的注册地 —— 从不为单个地址发请求。

@@ -69,7 +69,7 @@ func TestGoToolchainIsTheSameEverywhere(t *testing.T) {
 			{[]string{"README.md"}, `\| Go ([0-9.]+), single binary \|`},
 			{[]string{"docs", "index.md"}, `<strong>Go ([0-9.]+)</strong>`},
 			{[]string{"docs", "index.md"}, `Go ([0-9.]+), no runtime dependencies`},
-			{[]string{"docs", "_docs", "installation", "manual.md"}, `Go ([0-9.]+)\+ on the \*\*build\*\* machine`},
+			{[]string{"docs", "_docs", "installation", "manual.md"}, `准备 Go ([0-9.]+)\+（外加 Node\.js）`},
 			{[]string{"docs", "_diagrams", "install-choice.mmd"}, `From source<br/>Go ([0-9.]+) \+ make`},
 		} {
 			name := strings.Join(pin.file, "/")

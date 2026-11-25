@@ -35,4 +35,4 @@ podman run --rm \
 npx --yes pagefind@1.5.2 --site docs/_site \
   --glob "docs/**/*.html" \
   --root-selector "main.content" \
-  --force-language en
+  --force-language zh

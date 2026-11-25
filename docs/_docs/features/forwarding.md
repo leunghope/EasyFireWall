@@ -1,87 +1,76 @@
 ---
 layout: default
-title: Port Forwarding
-description: Redirect one port to another on the same host — and which of the two you have to open.
+title: 端口转发
+description: 把同一台主机上的一个端口重定向到另一个端口 —— 以及两者之中该开放哪一个。
 ---
 
-# Port Forwarding
+# 端口转发
 
-Traffic arriving on one port is served by whatever listens on another, on **this
-host**. `8080 → 80` means a request to 8080 reaches the service on 80.
+到达某个端口的流量，由**本机**上监听另一个端口的服务来处理。`8080 → 80` 表示发往 8080 的请求会到达监听在 80 上的服务。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/forwarding" ext="png"
-     alt="The port forwarding page: a table of redirect rules with protocol, incoming port and destination port, and context cards explaining how a redirect reads and what happens with privileged ports." %}
-  <figcaption>Each row is one redirect. The arrow points the way the packet travels.</figcaption>
+     alt="端口转发页面：一张重定向规则表，列出协议、入站端口和目标端口，另有说明卡片，解释一条重定向该怎么读，以及特权端口会怎样。" %}
+  <figcaption>每一行是一条重定向。箭头指向数据包行进的方向。</figcaption>
 </figure>
 
-## What a rule is
+## 一条规则包含什么
 
-| Field | Values | Meaning |
+| 字段 | 取值 | 含义 |
 |---|---|---|
-| Protocol | `tcp` or `udp` | matched on the incoming packet |
-| Incoming port | 1–65535 | the port the packet arrived on |
-| Destination port | 1–65535 | the port that serves it |
+| 协议 | `tcp` 或 `udp` | 匹配入站数据包 |
+| 入站端口 | 1–65535 | 数据包到达的端口 |
+| 目标端口 | 1–65535 | 为它提供服务的端口 |
 
-Both ports are required. A row missing either is refused with a message rather
-than saved half-finished.
+两个端口都必填。缺少任一个的行会被拒绝并给出提示，而不是半途保存。
 
-## Open the destination port, not the incoming one
+## 开放目标端口，而不是入站端口
 
-This is the one thing that catches people, and it follows from *where* the
-redirect happens.
+这是最容易出错的一点，而它源自重定向*发生的位置*。
 
 {% include themed-figure.html base="/assets/diagrams/forwarding-path" ext="svg"
-   alt="A packet arrives on port 2222, the NAT prerouting chain redirects it to port 22, and only then does the input filter see it — as port 22. If 22 is in the port rules the packet reaches the service, otherwise the chain policy drops it. Open 22, not 2222." %}
+   alt="一个数据包到达端口 2222，NAT prerouting 链把它重定向到端口 22，此后 input 过滤器才看到它 —— 此时它已是端口 22。若端口规则里有 22，数据包就到达服务，否则链策略会丢弃它。开放 22，而不是 2222。" %}
 
-NAT prerouting runs before the input filter. By the time the filter looks at the
-packet, its destination is already the port you redirected **to** — so that is
-the port your [port rules]({{ '/docs/features/ports/' | relative_url }}) must open.
+NAT prerouting 在 input 过滤器之前运行。等到过滤器看到数据包时，它的目标端口已经是你重定向**到**的那个端口 —— 所以你的[端口规则]({{ '/docs/features/ports/' | relative_url }})里必须开放的正是这个端口。
 
-| Redirect | Open in port rules | Not |
+| 重定向 | 在端口规则中开放 | 而不是 |
 |---|---|---|
 | `2222 → 22` | `22` | ~~2222~~ |
 | `8080 → 80` | `80` | ~~8080~~ |
 | `51821 → 51820` (udp) | `51820` | ~~51821~~ |
 
-> **This was the other way round before 2.5.0.** The rule matched the destination
-> port and redirected to the incoming one, so the documented example produced
-> `tcp dport 22 redirect to :2222`. It captured SSH on 22 and sent it where
-> nothing was listening. The guidance named the wrong port to open, too.
+> **2.5.0 之前，这里正好是反的。** 规则匹配的是目标端口，然后重定向到入站端口，因此文档里的示例会生成 `tcp dport 22 redirect to :2222`。它把 22 上的 SSH 拦下来，送到一个没有任何服务监听的地方。当时的指引也说错了该开放哪个端口。
 
-## What it is not
+## 它不是什么
 
-| | Why |
+| | 原因 |
 |---|---|
-| **Not** forwarding to another machine | the kernel statement is `redirect`, which retargets a port on *this* host. There is no destination-address field, and easywall writes no rule that can send traffic elsewhere |
-| **Not** a way past the firewall | the redirected packet goes through the input chain like any other — blocklist, protection modules and port rules all apply |
-| **Not** for traffic passing through | only packets addressed to this host are redirected (`fib daddr type local`); a connection this host routes to another machine is left alone |
+| **不是**转发到另一台机器 | 内核语句是 `redirect`，它只把端口改指到*本机*上。没有目标地址字段，easywall 也不会写出任何能把流量送到别处的规则 |
+| **不是**绕过防火墙的手段 | 被重定向的数据包和其他数据包一样要经过 input 链 —— 拦截列表、防护模块和端口规则全都适用 |
+| **不是**用于穿行的流量 | 只有发往本主机的数据包才会被重定向（`fib daddr type local`）；本机路由到另一台机器的连接不受影响 |
 
-## Ports below 1024
+## 1024 以下的端口
 
-Binding a port under 1024 needs root, which is exactly what a service should not
-have. Run it on a high port and redirect:
+绑定 1024 以下的端口需要 root 权限，而这恰恰是服务不该有的。让它监听一个高位端口，再做重定向：
 
-| Service listens on | Redirect | Open |
+| 服务监听在 | 重定向 | 开放 |
 |---|---|---|
-| 8080, as an unprivileged user | `80 → 8080` | `8080` |
-| 8443, as an unprivileged user | `443 → 8443` | `8443` |
+| 8080，以非特权用户运行 | `80 → 8080` | `8080` |
+| 8443，以非特权用户运行 | `443 → 8443` | `8443` |
 
-Check that nothing already holds the destination port — two things cannot listen
-on it, and the redirect will not say so.
+确认目标端口没有被别的程序占用 —— 两个程序无法同时监听它，而重定向不会告诉你这件事。
 
-## Nothing happens until you apply
+## 应用之前不会有任何变化
 
-Saving stages. It reaches the firewall on
-[Apply]({{ '/docs/features/apply/' | relative_url }}).
+保存只是暂存。它要经过[应用]({{ '/docs/features/apply/' | relative_url }})才会进入防火墙。
 
-## When it does not work
+## 不生效时
 
-| Symptom | Cause | Check |
+| 现象 | 原因 | 检查 |
 |---|---|---|
-| Connection refused on the incoming port | The **destination** port is not open in the port rules | Add it under [Ports]({{ '/docs/features/ports/' | relative_url }}) |
-| Nothing listening on the destination | The redirect succeeded and there is no service | `ss -tlnp \| grep <dest>` |
-| Works locally, not from outside | A redirect on `lo` is a different path; test from another host | |
-| Saved but nothing changed | Not applied yet | Go to **Apply rules** |
-| The row vanished when you saved | It no longer does — an incomplete row is refused with a reason, and stays on screen | |
-| Redirecting to another host | Not supported, by design — see *What it is not* | |
+| 入站端口上连接被拒绝 | 端口规则里没有开放**目标**端口 | 在[端口]({{ '/docs/features/ports/' | relative_url }})中加上它 |
+| 目标端口上没有服务监听 | 重定向成功了，但没有服务 | `ss -tlnp \| grep <dest>` |
+| 本机可用，外部不通 | `lo` 上的重定向是另一条路径；从另一台主机测试 | |
+| 保存了却没有变化 | 还没有应用 | 前往**应用规则** |
+| 保存时这一行消失了 | 现在不会了 —— 不完整的行会被拒绝并说明原因，且保留在屏幕上 | |
+| 重定向到另一台主机 | 设计上不支持 —— 见*它不是什么* | |

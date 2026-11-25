@@ -1,85 +1,63 @@
 ---
 layout: default
-title: Notifications
-description: Send a message to a webhook or an ntfy topic when an apply undid itself, when one was confirmed, when panic mode changed, or when sign-ins keep failing.
+title: 通知
+description: 应用自行撤销、应用被确认、恐慌模式变化，或登录持续失败时，向 Webhook 或 ntfy 主题发送一条消息。
 ---
 
-# Notifications
+# 通知
 
-easywall can tell you that something happened instead of waiting for you to open the
-dashboard. **Notifications** in the sidebar holds the whole setting: one destination,
-four triggers, one Save button.
+easywall 可以在事情发生时主动告诉你，而不必等你打开仪表盘。侧栏里的**通知**包含全部设置：一个目标、四个触发条件、一个保存按钮。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/notify" ext="png"
-     alt="The notifications page: a Send to selector, an address field, four trigger checkboxes, and Save notifications beside a Send a test button." %}
-  <figcaption>Nothing leaves this host until an address is set. After that, a ticked trigger or the test button sends one.</figcaption>
+     alt="通知页面：一个「发送到」选择器、一个地址输入框、四个触发条件复选框，以及「发送测试」按钮旁的「保存通知」。" %}
+  <figcaption>在设置地址之前，不会有任何内容离开这台主机。设置之后，勾选的触发条件或测试按钮会发送一条通知。</figcaption>
 </figure>
 
-## Set a destination
+## 设置目标
 
-| Send to | Address |
+| 发送到 | 地址 |
 |---|---|
-| **Nothing** | Notifications are off. This is the default |
-| **Webhook** | Any HTTP endpoint that accepts a POST with a JSON body |
-| **ntfy** | A topic URL, for example `https://ntfy.sh/your-private-topic` |
+| **不发送** | 通知已关闭。这是默认值 |
+| **Webhook** | 任何接受带 JSON 正文的 POST 请求的 HTTP 端点 |
+| **ntfy** | 一个主题 URL，例如 `https://ntfy.sh/your-private-topic` |
 
-Only `http://` and `https://` are accepted. Nothing else is a web endpoint, and the
-address is refused before it reaches the configuration file.
+只接受 `http://` 与 `https://`。其他任何东西都不是 Web 端点，地址在写入配置文件之前就会被拒绝。
 
-> **The address is a credential.** Anyone who has it can post to your topic, and on a
-> public ntfy server anyone who guesses it can read yours. Pick a topic name nobody
-> will guess, or run your own.
+> **地址就是凭据。** 任何拿到它的人都能向你的主题发送消息；在公共 ntfy 服务器上，任何人只要猜中主题名，就能读到你的消息。选一个没人猜得到的主题名，或者自建服务器。
 
-## Choose what you hear about
+## 选择你想收到哪些通知
 
-| Trigger | Sent when | Carries |
+| 触发条件 | 发送时机 | 附带内容 |
 |---|---|---|
-| **An apply undid itself** | the window closed unconfirmed: it expired, you ended it by hand, panic mode ended it, or the core stopped inside it | which of these it was |
-| **An apply was confirmed** | you confirmed inside the window and the rules are live | the event, nothing more |
-| **Panic mode started or ended** | on either edge, including `easywall-core panic` at the console | which edge, in words |
-| **Repeated failed sign-ins** | five failures from one address inside five minutes | the count and the address |
+| **应用自行撤销** | 窗口在未确认的情况下关闭：过期、你手动结束、恐慌模式结束，或 core 在窗口内停止 | 属于其中哪一种 |
+| **应用已确认** | 你在窗口内确认，且规则已生效 | 事件本身，别无其他 |
+| **恐慌模式启动或结束** | 任一时刻，包括在控制台运行 `easywall-core panic` | 是启动还是结束，以文字说明 |
+| **多次登录失败** | 五分钟内来自同一地址的五次失败 | 次数与该地址 |
 
-Nothing is sent for a trigger you leave unticked. The four take effect when you press
-**Save notifications**, not while you are ticking them.
+未勾选的触发条件不会发送任何内容。这四项在你按下**保存通知**时生效，而不是在你勾选它们的过程中。
 
-### The three the firewall raises
+### 防火墙自己引发的三种
 
-easywall reads its own status every 15 seconds. That is one socket round trip to
-the daemon on this host, and nothing to the network. The tick is longer than the
-status cache holds, so each one is a real ask rather than a free read. Confirmed
-and rolled back are states that stay, not instants that pass. A read landing after
-the 120-second window closed still finds the outcome, so nothing races that window.
+easywall 每 15 秒读取一次自己的状态。这是到本机守护进程的一次 socket 往返，不涉及网络。这个间隔比状态缓存的存活时间更长，所以每次都是真实询问，而不是免费读取。已确认和已回滚是持续存在的状态，不是转瞬即逝的瞬间。即使读取发生在 120 秒窗口关闭之后，仍能找到结果，因此不会与那个窗口产生竞争。
 
-A rollback carries the reason it happened, and the reasons are not flattened
-into one: a window that expired is not a window an operator ended.
+回滚会带上它发生的原因，而这些原因不会被合并成一种：因过期而关闭的窗口，和操作者手动结束的窗口不是一回事。
 
-### The one about sign-ins
+### 关于登录的那一种
 
-Five is not a number chosen here: it is the rate limiter's own ceiling, so the
-message is worth the same as easywall refusing that address. The same count, not
-the same moment: the limiter is a token bucket that refills, and this is a fixed
-five-minute window. Five failures spread over four minutes notify while the limiter
-still has tokens. The address then stays quiet for fifteen minutes, because the
-second hour of one attack is not news. Every other address keeps its own count;
-an IPv6 address counts with its /64, the unit the limiter refuses, and the
-message names the /64.
+这个「五」不是随便定的：它是速率限制器自身的上限，所以这条消息的意义等同于 easywall 拒绝该地址。相同的次数，不等于相同的时刻：限制器是一个会补充的令牌桶，而这里是固定的五分钟窗口。分散在四分钟内的五次失败会触发通知，而此时限制器仍有令牌。之后该地址会安静十五分钟，因为一次攻击的第二个小时已不算新闻。其他每个地址各自计数；IPv6 地址按其 /64 计数 —— 也就是限制器拒绝的单位 —— 消息中会写明该 /64。
 
-## Prove it arrives
+## 验证它确实送达
 
-**Send a test** posts one notification now, to the address in the field, whatever
-the four switches say. A test that stayed silent because a trigger is off would
-prove nothing about the endpoint. Under the triggers the page then shows when
-easywall last sent something, or what went wrong the last time it tried.
+**发送测试**会立刻按输入框中的地址发送一条通知，无论那四个开关怎么设置。一次因为某个触发条件关闭而保持沉默的测试，对端点毫无证明力。在触发条件下方，页面会显示 easywall 上次发送的时间，或上次尝试时出了什么错。
 
-The public demo sends nothing, and says so before you press the button. It does
-not keep the settings either — the form works and the change is not written.
+公共演示不发送任何内容，并在你按下按钮之前就说明这一点。它也不保存设置 —— 表单可以操作，但更改不会被写入。
 
-## What arrives
+## 会收到什么
 
-### A webhook
+### Webhook
 
-`POST`, with a JSON body:
+`POST`，正文为 JSON：
 
 ```json
 {
@@ -92,48 +70,36 @@ not keep the settings either — the form works and the change is not written.
 }
 ```
 
-`severity` is one of `info`, `warning` or `critical`, and `time` is UTC. `event`
-has five values, one per row:
+`severity` 取 `info`、`warning` 或 `critical` 之一，`time` 为 UTC。`event` 有五个取值，每行一个：
 
-| `event` | Raised by |
+| `event` | 由谁触发 |
 |---|---|
-| `test` | **Send a test** — the first one your receiver will ever see, and the one it gets with every switch off |
-| `rolled_back` | the acceptance window closed unconfirmed, or you ended it |
-| `accepted` | you confirmed inside the window |
-| `panic` | panic mode, on either edge |
-| `failed_logins` | the sign-in threshold |
+| `test` | **发送测试** —— 你的接收端见到的第一条消息，也是每个开关都关闭时它会收到的那条 |
+| `rolled_back` | 确认窗口在未确认的情况下关闭，或你手动结束 |
+| `accepted` | 你在窗口内确认 |
+| `panic` | 恐慌模式，任一时刻 |
+| `failed_logins` | 登录失败阈值 |
 
-A receiver written as a four-way switch over the triggers drops `test`, which is
-the message the button exists to produce.
+如果把接收端写成针对四个触发条件的四路分支，就会漏掉 `test`，而这正是那个按钮存在的意义。
 
 ### ntfy
 
-`POST`, `text/plain`. The body is the `detail` above; the rest travels in headers:
+`POST`，`text/plain`。正文是上面的 `detail`；其余信息放在请求头里：
 
-| Header | Value |
+| 请求头 | 值 |
 |---|---|
-| `Title` | this host's name, then the event |
-| `Priority` | `3` for info, `4` for warning, `5` for critical |
-| `Tags` | the event name |
+| `Title` | 本机名称，然后是事件 |
+| `Priority` | info 为 `3`，warning 为 `4`，critical 为 `5` |
+| `Tags` | 事件名 |
 
-ntfy has five priorities and easywall uses three. Nothing it has to say is worth
-ntfy's lowest, and the highest is kept for the event that means this host is not
-filtering.
+ntfy 有五个优先级，easywall 用了其中三个。它要说的话没有一条值得用 ntfy 的最低优先级，而最高优先级留给那个意味着本机不再过滤的事件。
 
-## What is not promised
+## 不作承诺的部分
 
-There is no queue and no delivery guarantee. A delivery that fails is tried once
-more and then dropped, with a line in the journal saying so. If the host has no
-route out when the rollback happens, that notification is gone.
+没有队列，也没有投递保证。投递失败会再试一次，然后被丢弃，并在日志中写下一行说明。如果回滚发生时主机没有对外路由，那条通知就丢失了。
 
-The audit log is the record; a notification is a convenience. Reading it as a
-second record is the one way this feature can mislead you. So the page says what
-it last managed to send, rather than implying every attempt landed.
+审计日志才是记录；通知只是便利。把它当作第二份记录，是这个功能唯一可能误导你的方式。所以页面只写它上次成功发送了什么，而不是暗示每次尝试都已送达。
 
-> **Redirects are refused.** A destination that answers with one is never
-> followed. Otherwise whoever controls its DNS could point your notifications at
-> somebody else.
+> **重定向会被拒绝。** 以重定向响应的目标绝不会被跟随。否则，谁控制了它的 DNS，谁就能把你的通知指向别人。
 
-Of the six requests easywall makes, this and an own feed are the two whose
-destination it does not name. All six are listed under
-[Security]({{ '/docs/security/' | relative_url }}#every-request-that-goes-out).
+easywall 发出的六个请求中，这一个和自有列表源是仅有的两个不由 easywall 指定目标的。全部六个列在[安全]({{ '/docs/security/' | relative_url }}#every-request-that-goes-out)页面下。

@@ -1,166 +1,112 @@
 ---
 layout: default
-title: Audit Log
-description: Who changed what, when — and which colour means the firewall actually moved.
+title: 审计日志
+description: 谁在什么时候改了什么 —— 以及哪种颜色才表示防火墙真的动了。
 ---
 
-# Audit Log
+# 审计日志
 
-Every administrative change, newest first. The viewer shows the last 200; the file
-on disk keeps everything.
+每一项管理操作，最新的在前。查看器显示最近 200 条；磁盘上的文件保留全部。
 
 <figure class="docs-shot">
   {% include themed-figure.html base="/assets/img/screens/log" ext="png"
-     alt="The audit log page: a filterable table with timestamp, colour-coded action, rule type, detail and user columns." %}
-  <figcaption>The filter matches the wording on screen as well as the identifier stored on disk.</figcaption>
+     alt="审计日志页面：一张可筛选的表格，包含时间戳、带颜色标记的操作、规则类型、详情和用户列。" %}
+  <figcaption>筛选器既匹配屏幕上显示的文字，也匹配磁盘上存储的标识符。</figcaption>
 </figure>
 
-## Only 12 entries carry colour
+## 只有 12 个条目带颜色
 
-Colour always means firewall state — green live, amber unconfirmed, red rolled
-back. It is the only thing colour means anywhere in the interface, so a merely
-informational event is never tinted: a coloured tag would stop meaning anything.
+颜色始终表示防火墙状态 —— 绿色为已生效，琥珀色为未确认，红色为已回滚。这是颜色在整个界面里唯一的含义，所以纯信息性的事件从不上色：一旦上色，这个标签就不再意味着任何东西。
 
-| | Action | Reads as | Meaning |
+| | 操作 | 显示为 | 含义 |
 |---|---|---|---|
-| 🟢 | `apply_accepted` | Rules applied | Confirmed and live |
-| 🟠 | `apply_started` | Apply started | Live but unconfirmed — the window is open |
-| 🔴 | `apply_rolledback` | Rules rolled back | The window closed unconfirmed; the previous rules are back |
-| 🔴 | `apply_failed` | Apply failed | The rules could not be pushed to the kernel |
-| 🔴 | `rollback_failed` | Rollback failed | The worst outcome there is: the new rules did not take **and** the old ones did not come back |
-| 🟢 | `boot_enforced` | Rules restored at startup | The stored rules were back in the kernel before anything else started |
-| 🟠 | `boot_not_configured` | Not filtering — nothing configured yet | The daemon started on a host nothing has ever been applied to, and left it as it found it |
-| 🔴 | `boot_enforce_failed` | Rules could not be restored | The machine came up and is not filtering — nothing on this list is worse. Also written when the panic marker cannot be read at all, when panic mode was engaged from the console while the restore was still writing, and whenever a panic teardown itself failed and the machine may still be filtering behind a marker that says it is not. The detail says which |
-| 🔴 | `panic_engaged` | Panic mode engaged | A human at the console took the firewall down on purpose. Deliberate does not make it neutral: the machine is unfiltered either way |
-| 🟢 | `panic_resumed` | Panic mode ended | The console put the firewall back to filtering |
-| 🔴 | `resume_restore_skipped` | Resume could not restore the rules | Resume cleared the panic marker but an apply held the slot, so the stored rules never made it back — the machine is left exactly as unfiltered as `boot_enforce_failed` describes |
-| 🟠 | `health_degraded` | Health degraded | An apply wrote a rule that easywall's own expression check cannot believe. The table went in anyway, and the rest of the chain is filtering — but one rule may match nothing, which is the class that let the established/related accept enforce nothing for five releases. The detail names the chain and the position; `easywall-core health` and the dashboard both report degraded until the next clean apply |
-| ⚪ | everything else | Rules saved, Options saved, Apply refused — panic mode is engaged, Stored, not written — panic, Feed updated, Feed update refused, Feed accepted after shrinking for a day, … | Something was staged, an attempt changed nothing live, or a feed's contents were refreshed — the detail names the feed and its entry counts |
+| 🟢 | `apply_accepted` | 规则已应用 | 已确认并生效 |
+| 🟠 | `apply_started` | 开始应用 | 已生效但未确认 —— 窗口还开着 |
+| 🔴 | `apply_rolledback` | 规则已回滚 | 窗口在未确认的情况下关闭；先前的规则回来了 |
+| 🔴 | `apply_failed` | 应用失败 | 规则无法推送到内核 |
+| 🔴 | `rollback_failed` | 回滚失败 | 最糟的结果：新规则没生效，**且**旧规则也没回来 |
+| 🟢 | `boot_enforced` | 启动时已恢复规则 | 在任何其他东西启动之前，存储的规则就已经回到内核里 |
+| 🟠 | `boot_not_configured` | 未过滤：尚未配置任何内容 | 守护进程在一台从未应用过任何规则的主机上启动，并保持原样离开 |
+| 🔴 | `boot_enforce_failed` | 无法恢复规则 | 机器起来了但没在过滤 —— 这个列表上没有比这更糟的。以下情况也会写入：完全读不到恐慌标记；在恢复仍在写入时从控制台启用了恐慌模式；以及任何一次恐慌拆除本身失败、机器可能仍在一个声称未过滤的标记背后继续过滤。详情会说明是哪一种 |
+| 🔴 | `panic_engaged` | 恐慌模式已启用 | 有人在控制台故意把防火墙停了下来。故意并不等于中立：不管怎样，机器都没在过滤 |
+| 🟢 | `panic_resumed` | 恐慌模式已结束 | 控制台让防火墙恢复过滤 |
+| 🔴 | `resume_restore_skipped` | resume 未能恢复规则 | 恢复清除了恐慌标记，但一次应用占着位置，所以存储的规则始终没能回来 —— 机器就停在 `boot_enforce_failed` 所描述的未过滤状态 |
+| 🟠 | `health_degraded` | 健康状态降级 | 一次应用写入了一条 easywall 自己的表达式检查无法采信的规则。表还是照样装了进去，链的其余部分也在过滤 —— 但可能有一条规则匹配不到任何东西，正是这一类问题让已建立/相关规则里的接受动作连续五个版本形同虚设。详情会给出链名和位置；`easywall-core health` 和仪表盘会一直报告降级，直到下一次干净的应用 |
+| ⚪ | 其他所有 | 规则已保存；选项已保存；应用被拒绝：恐慌模式已启用；已存储，未写入：恐慌模式；列表源已更新；列表源更新被拒绝；列表源缩小一天后才被接受；…… | 某样东西被暂存了、某次尝试没有改变任何生效内容，或者某个列表源的内容被刷新了 —— 详情会给出该列表源及其条目数 |
 
-> **`rules_saved` is neutral, not green.** Saving stages a change and leaves the
-> running firewall untouched. The same goes for `apply_refused_panic` and
-> `rollback_skipped`. Neither leaves the firewall doing anything new. One is an
-> apply that was refused, or whose rules were taken straight back down when
-> panic mode appeared underneath it. The other is a rollback that left the
-> kernel as the console's teardown had it, not the reverted rules the label
-> now names. The news in both cases is `panic_engaged`, which is red a
-> few lines away. Only the 12 actions above describe what the firewall is
-> actually doing, however consequential an event feels. The count here read
-> 10 against a table of 11 until 2.17 corrected it.
+> **`rules_saved` 是中性的，不是绿色。** 保存只是暂存一次更改，正在运行的防火墙不受影响。`apply_refused_panic` 和 `rollback_skipped` 同理。两者都没有让防火墙做出任何新的动作。前者是一次被拒绝的应用，或是在恐慌模式从底下冒出来时规则被直接撤下的应用。后者是一次回滚，它让内核停在控制台拆除后的样子，而不是这个标签现在所描述的「已还原的规则」。这两种情况下真正的新闻都是 `panic_engaged`，它就在几行之外的红色条目里。只有上面那 12 个操作描述了防火墙实际在做什么，无论某个事件感觉上多么重大。在 2.17 纠正之前，这里的计数写的是 10，而表格有 11 行。
 
-> **`boot_not_configured` is amber because nothing is filtering, not because
-> something went wrong.** A new installation ships an empty rule set, and
-> enforcing it would close every port. SSH included — and the interface whose
-> first-run wizard is the only thing that opens them. Filtering starts at your
-> first apply, which has the acceptance window to undo it. The same entry is
-> written when a first apply is *not* confirmed: the window takes the table back
-> down rather than return you to that empty set.
+> **`boot_not_configured` 是琥珀色，因为没有任何东西在过滤，而不是因为出了错。** 全新安装带的是一套空规则集，强制执行它会把每个端口都关上。SSH 也在内 —— 而打开这些端口的唯一途径就是那个界面，它的首次运行向导。过滤从你的第一次应用开始，而那次应用有确认窗口可以撤销它。当第一次应用*未*被确认时，写入的也是同一条：窗口会把表撤下，而不是把你送回那套空规则集。
 
-> **`selftest_passed` and `selftest_failed` are neutral too.** The self-test
-> proves easywall's rule builder against this kernel inside a network namespace
-> of its own. A failed proof is serious and it is not a firewall state: the
-> firewall on this machine goes on filtering exactly as it did a second
-> earlier. Their detail is the one place the proof's own text is kept.
-> `/healthz` deliberately carries none of it: the endpoint is
-> unauthenticated, and the text names which claim failed and on which port.
+> **`selftest_passed` 和 `selftest_failed` 也是中性的。** 自检在一个属于它自己的网络命名空间里，拿 easywall 的规则生成器对这台机器的内核做证明。证明失败很严重，但它不是一种防火墙状态：这台机器上的防火墙仍然和一秒前一样继续过滤。它们的详情是唯一保留证明本身文字的地方。`/healthz` 有意不带这些内容：该端点无需认证，而那些文字会点明是哪一项断言失败、在哪个端口上。
 
-## The thirteen login events
+## 十三个登录事件
 
-New in 2.8, where there were none at all: this page used to send you to
-`journalctl -u easywall-web` for a failed login. 2.18 added the four
-`passkey_*` rows, when a passkey joined TOTP as a way through the second step.
+2.8 新增，在此之前一条都没有：过去这个页面会把你打发到 `journalctl -u easywall-web` 去查登录失败。2.18 增加了四条 `passkey_*` 记录 —— 那时通行密钥加入 TOTP，成为走完第二因子的一条路。
 
-| Action | Reads as | When |
+| 操作 | 显示为 | 何时 |
 |---|---|---|
-| `login_ok` | Signed in | A completed sign-in, both steps if a factor is enrolled |
-| `login_failed` | Sign-in failed | Wrong username or wrong password |
-| `login_2fa_failed` | Second factor failed | Wrong code, a recovery code that is not one of the eight, or a passkey assertion that did not verify |
-| `login_recovery_used` | Recovery code used | The detail says how many are left |
-| `login_ratelimited` | Sign-in attempts blocked | Five attempts inside ten minutes from one address |
-| `logout` | Signed out | The button, not a timeout |
-| `totp_enabled` · `totp_disabled` | Second factor switched on / off | From the password page |
-| `recovery_codes_regenerated` | New recovery codes issued | The eight previous ones stopped working at that moment |
-| `passkey_used` | Signed in with a passkey | The second step, completed with a passkey instead of a code |
-| `passkey_enrolled` · `passkey_removed` | Passkey added / removed | From the password page |
-| `passkey_clone_suspected` | Passkey refused — counter did not advance | Refused as a failed attempt, not signed in |
+| `login_ok` | 已登录 | 一次完成的登录；若已登记因子，则包含两步 |
+| `login_failed` | 登录失败 | 用户名错误或密码错误 |
+| `login_2fa_failed` | 第二因子验证失败 | 验证码错误、用了八个恢复码之外的一个恢复码，或通行密钥断言未通过校验 |
+| `login_recovery_used` | 已使用恢复码 | 详情会说明还剩几个 |
+| `login_ratelimited` | 登录尝试已被阻止 | 同一地址十分钟内五次尝试 |
+| `logout` | 已退出登录 | 点了按钮，不是超时 |
+| `totp_enabled` · `totp_disabled` | 第二因子已启用 / 已关闭 | 在密码页面操作 |
+| `recovery_codes_regenerated` | 已签发新的恢复码 | 先前的八个从那一刻起失效 |
+| `passkey_used` | 使用通行密钥登录 | 第二步用通行密钥而不是验证码完成 |
+| `passkey_enrolled` · `passkey_removed` | 已添加通行密钥 / 已移除通行密钥 | 在密码页面操作 |
+| `passkey_clone_suspected` | 通行密钥被拒绝：计数器未递增 | 按失败尝试拒绝，未登录 |
 
-**`passkey_clone_suspected` means the assertion verified and was refused
-anyway.** Its signature counter did not move past what that credential last
-reported, which is what a cloned authenticator or a replayed response looks
-like. The attempt is charged to the same budget a wrong code is.
+**`passkey_clone_suspected` 的意思是断言校验通过了，却仍然被拒绝。** 它的签名计数器没有越过该凭据上次报告的值，而这正是被克隆的认证器或重放的响应看起来的样子。这次尝试和验证码输错一样，计入同一份额度。
 
-**None of them carries colour**, and that is the same rule the table above
-states: colour means the firewall moved. A sign-in does not move it.
+**它们都不带颜色**，这与上面表格所说的是同一条规则：颜色表示防火墙动了。登录不会让它动。
 
-**Four of them are folded.** `login_failed`, `login_2fa_failed`,
-`login_ratelimited` and `logout` are the four a stranger can trigger. A burst from
-one address becomes two lines — the first immediately, then a summary sixty
-seconds later saying how many followed. Without that, forty addresses knocking for
-an hour would push everything else off the 200 lines this page shows. Beyond 1024
-distinct addresses inside one window the rest are one burst together: the first
-immediately, then `from more than 1024 addresses, N more within 60s`. The volume
-is still recorded, and the memory is not something a stranger chooses.
+**其中四条会被折叠。** `login_failed`、`login_2fa_failed`、`login_ratelimited` 和 `logout` 是陌生人能触发的四条。来自同一地址的一阵爆发会变成两行 —— 第一条立刻写入，六十秒后一条汇总，说明后面还跟了多少条。没有这个机制，四十个地址敲一个小时，就会把其他内容从本页显示的 200 行里挤出去。在一个窗口内超过 1024 个不同地址时，其余合并成一次爆发：第一条立刻写入，随后是 `from more than 1024 addresses, N more within 60s`。条数依然被记录下来，而这块内存不是陌生人能随意决定的。
 
-**The username is never recorded**, on a failed sign-in or a successful one. It
-would be foreign text in the record, and with exactly one account it says
-nothing. The `user` column says `web` for all thirteen.
+**用户名从不记录**，无论登录失败还是成功。那会在记录里塞进外来文本，而且既然只有一个账户，它什么也说明不了。`user` 列对这十三条而言全都是 `web`。
 
-## The columns
+## 各列
 
-| Column | Holds |
+| 列 | 内容 |
 |---|---|
-| Timestamp | Clock time today, day and month before that. The full value is in the title attribute |
-| Action | The identifier, rendered in your language |
-| Rule type | `tcp`, `udp`, `blocklist`, `allowlist`, `forwarding`, `custom`, or `all` |
-| Detail | What changed — the addresses added and removed, or the settings that moved |
-| User | The **process** that wrote the entry, not the person — one of five values, listed below |
+| 时间戳 | 今天显示时刻，更早的显示日与月。完整值在 title 属性里 |
+| 操作 | 标识符，按你的语言渲染 |
+| 规则类型 | `tcp`、`udp`、`blocklist`、`allowlist`、`forwarding`、`custom` 或 `all` |
+| 详情 | 变了什么 —— 增加和移除的地址，或发生改动的设置 |
+| 用户 | 写入该条目的**进程**，不是人 —— 五种取值之一，见下 |
 
-## The address is the peer, and says when it is not
+## 地址是对端，不是的时候会说明
 
-easywall records the TCP peer: whoever actually opened the connection — unless
-that peer is on `trusted_proxies`, in which case it records what
-`X-Forwarded-For` names instead. Without an entry there, easywall-web
-terminates TLS itself and is not assumed to sit behind a trusted proxy. An
-address in the firewall's own audit log that any client could choose would be
-worse than no address at all.
+easywall 记录的是 TCP 对端：真正打开连接的那一方 —— 除非该对端在 `trusted_proxies` 里，这种情况下改记 `X-Forwarded-For` 所指的地址。那里没有条目时，easywall-web 自己终结 TLS，不会被假定为位于可信代理之后。防火墙自己的审计日志里出现一个任何客户端都能自行选择的地址，那比完全没有地址更糟。
 
-Behind a reverse proxy the peer **is** the proxy, so every login shows the same
-address. When that happens the entry says so: the detail reads the address
-followed by a **via proxy** chip. The line in `/var/log/easywall/audit.log`
-carries the token `via-proxy`, so `grep 'via-proxy' audit.log` finds every one
-of them.
+在反向代理后面，对端**就是**代理，所以每次登录都显示同一个地址。出现这种情况时，条目会讲明：详情里是地址，后面跟一个**经代理**小标签。`/var/log/easywall/audit.log` 里那一行带 `via-proxy` 记号，所以 `grep 'via-proxy' audit.log` 能把它们全部找出来。
 
-## The user column
+## 用户列
 
-It names the process. There were four from 2.7; 2.17's self-test added the fifth:
+它指的是进程。2.7 起有四个；2.17 的自检加了第五个：
 
-| Value | Written by |
+| 取值 | 写入者 |
 |---|---|
-| `web` | the web interface — every rule, option and setting change, and every apply you start from a page |
-| `core` | the daemon itself, for work no operator asked for in the moment: the boot restore and the restore that follows the end of panic mode |
-| `console` | `easywall-core panic` or `resume`, carried out by the running daemon on the console's behalf. Only a root caller gets this far; anyone else is refused before anything is written |
-| `console-no-daemon` | the same two commands with no daemon running, where the console tool writes the marker and the entry itself — the lockout path, so it says which process was there |
-| `selftest` | `easywall-core selftest`, run by `easywall-selftest.service` before the daemon exists or by hand at a shell. Neither `core` nor `console` is true of it: the proof runs in that binary and the daemon it precedes never sees it |
+| `web` | Web 界面 —— 每一次规则、选项和设置更改，以及你从页面发起的每一次应用 |
+| `core` | 守护进程本身，用于当时没有操作者要求的那些工作：启动时的恢复，以及恐慌模式结束后紧接着的恢复 |
+| `console` | `easywall-core panic` 或 `resume`，由运行中的守护进程代表控制台执行。只有 root 调用者能走到这一步；其他人会在写入任何东西之前被拒绝 |
+| `console-no-daemon` | 同样这两条命令，但没有守护进程在运行，此时控制台工具自己写标记和条目 —— 这是被锁在外面时的路径，所以它要说明当时是哪个进程在 |
+| `selftest` | `easywall-core selftest`，由 `easywall-selftest.service` 在守护进程存在之前运行，或由人在 shell 里手动运行。`core` 和 `console` 对它都不成立：证明在那个二进制里运行，而它所先于启动的守护进程从没见过它 |
 
-## What is not in it
+## 哪些不在其中
 
-| Not recorded | Where to look instead |
+| 不记录 | 去哪里查 |
 |---|---|
-| Which account made a change | nowhere. `web` names the process, not the person, because the socket protocol carries no identity yet — [roadmap]({{ '/docs/roadmap/' | relative_url }}) |
-| Read-only page views | nowhere — not recorded at all |
-| Edits made directly to `easywall.toml` | your own change management |
+| 哪个账户做了更改 | 哪里都查不到。`web` 指的是进程，不是人，因为 socket 协议目前不携带身份 —— [路线图]({{ '/docs/roadmap/' | relative_url }}) |
+| 只读页面访问 | 哪里都没有 —— 根本不做记录 |
+| 直接修改 `easywall.toml` | 你自己的变更管理流程 |
 
-> **The detail column was empty until 2.5.0.** Every save wrote a blank, so the
-> column meant to answer *what changed* was a dash on every line. It now names
-> the addresses that came and went, counts the entries for rule kinds whose
-> members are structures, and names the settings that moved. Long lists are
-> capped at six names plus a count.
+> **详情列在 2.5.0 之前是空的。** 每次保存都写入空白，于是这个本该回答*变了什么*的列，每行都是一道横杠。现在它会列出进出的地址，对条目是结构体的规则类型改为统计条目数，并列出发生改动的设置。长列表最多六个名字，外加一个计数。
 
-## On disk
+## 磁盘上
 
-One JSON object per line, append-only, `0600 root` — readable with `sudo`, never
-by the web process. A file left group-readable by a release before 2.5.0 is made
-`0600` when easywall-core starts:
+每行一个 JSON 对象，只追加，权限 `0600 root` —— 可用 `sudo` 读取，Web 进程永远读不到。2.5.0 之前的某个版本曾留下过组可读的文件，easywall-core 启动时会把它改成 `0600`：
 
 ```bash
 sudo tail -f /var/log/easywall/audit.log
@@ -174,27 +120,18 @@ sudo tail -f /var/log/easywall/audit.log
 {"time":"2026-08-10T09:02:55Z","action":"panic_engaged","rule_type":"all","detail":"the firewall was taken down from the console","user":"console"}
 ```
 
-Each line stores its time as RFC 3339 in UTC. The interface converts it to the
-server's local zone for display. It also keeps the stored value in the
-`title` attribute of the cell, so hovering shows the exact instant the core
-recorded.
+每行的时间以 RFC 3339 存储，UTC。界面显示时把它换算成服务器的本地时区。它还会把存储的原始值留在单元格的 `title` 属性里，所以悬停就能看到 core 记录的确切时刻。
 
-`rollback_failed` is the one worth alerting on: it means the new rules did not
-take **and** the previous ones did not come back.
+`rollback_failed` 是唯一值得做告警的那一个：它意味着新规则没生效，**且**先前的规则没回来。
 
-Line-oriented JSON ships straight into Filebeat, Promtail or any log collector.
-Rotation is `logrotate`'s job — the Debian package installs a config for it. Where
-there is none — the container image ships no `logrotate` — the core bounds the file
-itself. Past 16 MiB it rewrites the log down to its most recent entries and records
-an `audit_rotated` entry saying how many bytes it dropped. Where `logrotate` runs it
-keeps the file far below that, and this never fires.
+按行分隔的 JSON 可以直接送进 Filebeat、Promtail 或任何日志采集器。轮转交给 `logrotate` —— Debian 包会为它安装一份配置。在没有 `logrotate` 的地方 —— 容器镜像就不带 —— core 自己给文件设上限。超过 16 MiB 时，它把日志重写到只剩最近的条目，并记录一条 `audit_rotated`，说明丢掉了多少字节。在 `logrotate` 运行的地方，文件会远低于这个值，这套机制永远不会触发。
 
-## When it looks wrong
+## 看起来不对时
 
-| Symptom | Cause |
+| 现象 | 原因 |
 |---|---|
-| The table is empty | Nothing recorded yet, or the core cannot write to `log_dir` |
-| Older entries missing | The viewer caps at 200; the file has the rest, until rotation drops the oldest past 16 MiB (above) |
-| A search finds nothing you know is in the log | The filter searches the same newest 200, not the file. `grep` the file for anything older |
-| Wrong timezone | Timestamps are stored in UTC and shown in the server's local zone. If the interface disagrees with your clock, it is the *server's* zone that is off — `timedatectl set-timezone Europe/Berlin`, then restart `easywall-web`. In Docker, set `TZ` on the container |
-| A filter finds nothing | It matches action, rule type, detail and user; not the timestamp — and only within the 200 entries the page was given |
+| 表格为空 | 还没记录任何内容，或者 core 无法写入 `log_dir` |
+| 较早的条目不见了 | 查看器上限 200 条；其余的都在文件里，直到轮转把最旧的丢掉（超过 16 MiB，见上文） |
+| 搜索找不到你明知在日志里的内容 | 筛选器搜索的是同样那最近 200 条，不是文件。更早的内容请用 `grep` 查文件 |
+| 时区不对 | 时间戳以 UTC 存储，按服务器本地时区显示。如果界面和你的时钟不一致，那是*服务器*的时区不对 —— `timedatectl set-timezone Europe/Berlin`，然后重启 `easywall-web`。在 Docker 里，给容器设置 `TZ` |
+| 筛选器什么都找不到 | 它匹配操作、规则类型、详情和用户；不匹配时间戳 —— 而且只在页面拿到的那 200 条之内 |

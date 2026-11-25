@@ -42,7 +42,7 @@ runs:
         npx --yes pagefind@1.5.2 --site _site \
           --glob "docs/**/*.html" \
           --root-selector "main.content" \
-          --force-language en
+          --force-language zh
     # docs.css overrides these by name, because Pagefind's custom properties
     # cannot reach height, scroll or the typography of an excerpt. That is the
     # same trade the reference integration of this engine makes, and it is only

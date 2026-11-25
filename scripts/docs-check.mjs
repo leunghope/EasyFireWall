@@ -20,8 +20,12 @@ import { chromium } from 'playwright-core';
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../docs/_site/', import.meta.url).pathname;
+// `new URL(...).pathname` is percent-encoded, so a checkout whose path holds a
+// non-ASCII character yields a directory that does not exist and every page
+// 404s. fileURLToPath decodes it.
+const ROOT = fileURLToPath(new URL('../docs/_site/', import.meta.url));
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -135,7 +139,11 @@ async function checkSearchResults(page, base) {
   await field.fill('asdasd');
   await page.waitForTimeout(900);   // PagefindUI debounces at 300ms
   ok(await shown.count() === 0, 'asdasd finds nothing');
-  ok(/no results/i.test(await page.locator('#docs-search-panel .pagefind-ui__message').textContent()),
+  // Either spelling: the site's own result line (written by the prune block in
+  // default.html) is Chinese, while PagefindUI's own untranslated fallback is
+  // English. Which one shows depends on whether the prune ran, and the check
+  // is that the empty result says something — not which language said it.
+  ok(/no results|没有匹配/i.test(await page.locator('#docs-search-panel .pagefind-ui__message').textContent()),
      'and says so');
   ok(!(await more.isVisible()), 'and hides the load-more control');
 
@@ -233,11 +241,12 @@ async function checkCopyButton(context, page, base) {
   if (!(await btn.count())) return;
 
   await btn.click();
-  // waitFor a text match rather than sampling once: the label reverts to Copy
-  // after 2 seconds, so a single read races that timeout and is flaky either
-  // way it lands.
+  // waitFor a text match rather than sampling once: the label reverts to its
+  // resting text after 2 seconds, so a single read races that timeout and is
+  // flaky either way it lands. Both languages are accepted because the site is
+  // Chinese and the label is in the template, not in this file.
   try {
-    await btn.filter({ hasText: 'Copied' }).waitFor({ state: 'visible', timeout: 1000 });
+    await btn.filter({ hasText: /已复制|Copied/ }).waitFor({ state: 'visible', timeout: 1000 });
     ok(true, 'the button confirms in its own label');
   } catch {
     ok(false, 'the button confirms in its own label');

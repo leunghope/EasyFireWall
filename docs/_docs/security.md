@@ -1,198 +1,118 @@
 ---
 layout: default
-title: Security Model
-description: What the design defends against, what it does not, and the CVE in the Python version that shaped it.
+title: 安全模型
+description: 这套设计防御什么、不防御什么，以及塑造了它的 Python 版本中的那个 CVE。
 ---
 
-# Security Model
+# 安全模型
 
-The whole design follows from one decision: the process reachable from the network
-holds no privilege worth stealing.
+整个设计都源自一个决定：从网络可达的那个进程，不持有任何值得窃取的权限。
 
 {% include themed-figure.html base="/assets/diagrams/architecture" ext="svg"
-   alt="Browser talks HTTPS to easywall-web, which runs unprivileged; easywall-web talks typed JSON over a Unix socket to easywall-core, which runs as root and speaks netlink to the nftables table inet easywall." %}
+   alt="浏览器通过 HTTPS 与 easywall-web 通信，后者以无权限身份运行；easywall-web 通过 Unix socket 以类型化 JSON 与 easywall-core 通信，后者以 root 运行，并通过 netlink 与 nftables 表 inet easywall 通信。" %}
 
-## Threat model
+## 威胁模型
 
-| Threat | Mitigation |
+| 威胁 | 缓解措施 |
 |---|---|
-| Rule or command injection | Every typed rule goes to the kernel as a Go struct over netlink — no shell, no argv, nothing to escape. Custom rules are the one exception and are handled below |
-| Escalation from the web process | It has no kernel access. Reaching nftables needs a command the typed protocol accepts |
-| Auth brute force | Argon2id, plus 5 attempts per 10 minutes per source address |
-| CSRF | Go 1.25 `net/http.CrossOriginProtection` — `Origin` and `Sec-Fetch-Site` on every unsafe method |
-| XSS | `html/template` escapes by default; CSP with no `'unsafe-inline'` and no external origin |
-| Session hijacking | HTTPS only, `HttpOnly`, `Secure`, `SameSite=Lax`, ends 600 seconds after last use, and every session ends the moment the password changes |
-| Locking the admin out | The acceptance window rolls back on its own; if it already has and you are still shut out, `easywall-core panic` reaches the firewall from the console — see [Panic mode](#panic-mode) |
-| A clock that blocks the mandatory second factor | A board with no real-time clock, or one that is simply wrong, can make every code fail. Enrolling does not need console access to recover from that — see [If the clock is wrong](#if-the-clock-is-wrong) |
-| Known CVEs in dependencies | `govulncheck` on every pull request and weekly, plus CodeQL and `gosec` |
-| Dependency hijacking | Renovate raises every update, patch releases auto-merge only once CI is green, minor and major wait for a person; plus secret scanning and dependency review |
-| A spoofed source address | `X-Forwarded-For` is **not** trusted — see [behind a reverse proxy](#behind-a-reverse-proxy) |
+| 规则或命令注入 | 每条类型化规则都以 Go 结构体的形式经 netlink 送入内核——没有 shell，没有 argv，也没有可逃逸的东西。自定义规则是唯一的例外，处理方式见下文 |
+| 从 Web 进程提权 | 它没有内核访问权限。要触达 nftables，必须借助类型化协议所接受的命令 |
+| 认证暴力破解 | Argon2id，外加每个源地址每 10 分钟 5 次尝试 |
+| CSRF | Go 1.25 的 `net/http.CrossOriginProtection`——每个不安全方法都会校验 `Origin` 与 `Sec-Fetch-Site` |
+| XSS | `html/template` 默认转义；CSP 既不含 `'unsafe-inline'`，也不含任何外部来源 |
+| 会话劫持 | 仅限 HTTPS，`HttpOnly`、`Secure`、`SameSite=Lax`，最后一次使用后 600 秒结束，并且密码一变更所有会话立即结束 |
+| 把管理员锁在门外 | 确认窗口会自动回滚；如果它已经回滚而你仍然进不去，`easywall-core panic` 可以从控制台直接触达防火墙——见[恐慌模式](#panic-mode) |
+| 时钟阻断强制的第二因子 | 没有实时时钟的主板，或者时钟只是不准，都会让每个动态口令都验证失败。注册环节无需控制台访问即可从中恢复——见[时钟不准时](#if-the-clock-is-wrong) |
+| 依赖中的已知 CVE | 每个拉取请求都运行 `govulncheck`，另加每周一次，以及 CodeQL 与 `gosec` |
+| 依赖被劫持 | Renovate 为每个更新发起变更，补丁版本仅在 CI 通过后自动合并，次版本与主版本等待人工处理；此外还有密钥扫描与依赖审查 |
+| 伪造的源地址 | **不信任** `X-Forwarded-For`——见[反向代理之后](#behind-a-reverse-proxy) |
 
-## Authentication
+## 认证
 
 | | |
 |---|---|
-| Hash | Argon2id — 64 MiB, 3 iterations, parallelism 4, 16-byte salt per password. One at a time — see [what the limits cost](#what-the-sign-in-limits-cost) |
-| Password floor | at least 12 characters, with a digit and a symbol — punctuation, a symbol or a space. Invisible characters (a zero-width space, a soft hyphen, a combining accent) count as neither. Not configurable |
-| Default password | none. The first-run wizard is mandatory |
-| First run | only with the setup token easywall-web prints to its log at start — [First Run]({{ '/docs/installation/first-run/' | relative_url }}#the-setup-token) |
-| Rate limit | 5 attempts per 10 minutes per source address — an IPv6 source counts as its /64. One returned every 10 minutes |
-| Session | ends 600 s after last use. A page polling on its own is not use, except the apply screen during a window · `HttpOnly` · `Secure` · `SameSite=Lax` |
-| Cookie signing key | generated on first start unless configured. Anyone holding it can forge a session, and the placeholder in the sample config is published here — so a missing, short or placeholder key is replaced and written back |
-| Logout | ends that session immediately, and only that one. The identifier is recorded as revoked, because a signed cookie is self-contained and telling the browser to drop it leaves the value working. The record is in memory: a restart within ten minutes forgets it |
-| Password change | ends every **other** session at once. Each carries a fingerprint of the password hash it was issued under and is refused once that stops matching |
-| Recovery | none by design — no mail, no outside service. [Clear the password line]({{ '/docs/installation/first-run/' | relative_url }}#if-you-lose-the-password) on the host |
-| Second factor | mandatory, per the single account — [TOTP or a passkey, plus eight recovery codes]({{ '/docs/features/two-factor/' | relative_url }}). Enabling or disabling one ends every other session, the same way a password change does |
+| 哈希 | Argon2id——64 MiB、3 轮迭代、并行度 4、每个密码 16 字节盐。一次只算一个——见[这些限制的代价](#what-the-sign-in-limits-cost) |
+| 密码下限 | 至少 12 个字符，且包含一个数字和一个符号——标点、符号或空格皆可。不可见字符（零宽空格、软连字符、组合附加符号）两边都不算。不可配置 |
+| 默认密码 | 无。首次运行向导是强制的 |
+| 首次运行 | 仅在持有 easywall-web 启动时打印到日志里的初始化令牌时可用——[首次运行]({{ '/docs/installation/first-run/' | relative_url }}#the-setup-token) |
+| 速率限制 | 每个源地址每 10 分钟 5 次尝试——IPv6 源按其 /64 计。每 10 分钟归还一次额度 |
+| 会话 | 最后一次使用后 600 秒结束。页面自行轮询不算使用，确认窗口期间的应用页面除外 · `HttpOnly` · `Secure` · `SameSite=Lax` |
+| Cookie 签名密钥 | 除非已配置，否则在首次启动时生成。任何持有它的人都能伪造会话，而示例配置中的占位值就发布在这里——因此缺失、过短或等于占位值的密钥会被替换并写回 |
+| 退出登录 | 立即结束该会话，且只结束这一个。其标识符会被记为已撤销，因为签名 Cookie 是自包含的，只让浏览器丢掉它，那个值仍然可用。该记录只在内存中：十分钟内发生重启，它就被忘掉了 |
+| 修改密码 | 立即结束所有**其他**会话。每个会话都携带其签发时所依据密码哈希的指纹，一旦不再匹配就会被拒绝 |
+| 找回 | 按设计没有找回途径——不发邮件，不依赖外部服务。在主机上[清空密码行]({{ '/docs/installation/first-run/' | relative_url }}#if-you-lose-the-password) |
+| 第二因子 | 强制启用，针对这唯一的账号——[动态口令（TOTP）或通行密钥，外加八个恢复码]({{ '/docs/features/two-factor/' | relative_url }})。启用或禁用任一因子都会结束其他所有会话，与修改密码相同 |
 
-With a second factor enrolled, the password step ends in a redirect, not a
-session. The second step is checked at `/login/verify`, in either order: a
-typed code, a recovery code, or a passkey assertion. That step has no rate
-limit of its own and does not need one. One intermediate state allows three
-attempts against the code field **or** the passkey button — the two share one
-counter — and a new intermediate state costs a password round. Five password
-rounds are allowed per ten minutes per address, so **fifteen attempts per ten
-minutes per address**, code and passkey combined, against a target that rotates
-every thirty seconds.
+注册第二因子之后，密码这一步以重定向结束，而不是建立会话。第二步在 `/login/verify` 校验，三种方式任选其一，不分先后：手动输入的动态口令、恢复码，或通行密钥断言。这一步本身没有速率限制，也不需要。一个中间状态允许对动态口令输入框**或**通行密钥按钮共尝试三次——两者共用一个计数器——而获得一个新的中间状态要消耗一次密码轮次。每个地址每十分钟允许五次密码轮次，因此**每个地址每十分钟十五次尝试**，动态口令与通行密钥合计，而目标每三十秒轮换一次。
 
-That count is the server's, held in memory against a random identifier the
-intermediate cookie carries. Until 2.18 it lived in the cookie itself, so the
-three bound a browser that kept sending back what the server handed it. A
-client replaying one frozen cookie went on guessing. Nothing is written back to
-that cookie now, so there is nothing for a client to decline to keep. Each
-attempt is taken from the count before the code is checked, so attempts sent
-all at once get three checks between them, not one each.
+这个计数在服务器端，以中间 Cookie 携带的随机标识符为键保存在内存中。在 2.18 之前，它就存放在 Cookie 本身里，因此那三次只约束得住一个不断把服务器给它的东西回传的浏览器；客户端只要重放一个冻结的 Cookie，就能一直猜下去。现在不再向该 Cookie 写回任何内容，客户端也就没有可拒绝保存的东西。每次尝试都在校验动态口令之前先从这个计数里扣减，因此同时发出的一批尝试总共只换来三次校验，而不是每条各得一次。
 
-A restart empties the table, and a half-finished login then starts again with
-the full three. That direction is deliberate: forgetting costs an attacker one
-extra password round, and those are limited to five per ten minutes. Refusing
-instead would lock an operator out of their own firewall after a service
-restart.
+重启会清空这张表，未完成的登录随后从完整的三次重新开始。这个方向是刻意选择的：遗忘让攻击者多付一次密码轮次，而密码轮次被限制为每十分钟五次。反过来，若改为拒绝，就会在服务重启后把运维者锁在自己的防火墙之外。
 
-Both halves are held by tests. Three attempts end the attempt whichever door
-they came through, and the sixteenth in ten minutes does not get through.
+这两部分都有测试守着。三次尝试用尽即结束这次尝试，无论从哪扇门进来；而十分钟内的第十六次也过不去。
 
-### What the sign-in limits cost
+### 这些登录限制的代价 {#what-the-sign-in-limits-cost}
 
-Each limit closes a flood, and each has a price somebody else can make you pay.
+每条限制都堵住一种洪泛，而每条限制都有一个别人能让你付出的代价。
 
-| Limit | Closes | The price |
+| 限制 | 堵住什么 | 代价 |
 |---|---|---|
-| 5 attempts per 10 minutes, IPv6 per /64 | guessing; one host rotating through its /64 | whoever shares your /64, or your IPv4 address behind NAT, spends your budget |
-| One password hash at a time, 5 s wait | 64 MiB per attempt — ten at once took 668 MiB | a flood from many sources can keep the slot busy: your sign-in is answered `503` and still counts against your budget |
-| 65,536 sources tracked | memory chosen by strangers | while that many have tried in the last 15 minutes, a new source is answered `429` until one ages out. A source already tracked is unaffected |
+| 每 10 分钟 5 次，IPv6 按 /64 计 | 猜测；以及单台主机在其 /64 内轮换地址 | 任何与你共享 /64 的人，或者 NAT 之后与你共享 IPv4 地址的人，都会花掉你的额度 |
+| 一次只算一个密码哈希，等待 5 s | 每次尝试 64 MiB——十个并发曾占用 668 MiB | 来自多个来源的洪泛可以一直占住这个槽位：你的登录会得到 `503` 响应，而且仍然计入你的额度 |
+| 跟踪 65,536 个来源 | 由陌生人决定的内存占用 | 当最近 15 分钟内有这么多来源尝试过时，新的来源会得到 `429`，直到有旧来源过期。已被跟踪的来源不受影响 |
 
-Nothing at the ceiling is let in by forgetting another source: that would
-hand an exhausted budget back to whoever sent from enough addresses.
+到达上限时，不会通过遗忘另一个来源来放行任何人：那等于把已经耗尽的额度交还给任何从足够多地址发起请求的人。
 
-### Passkeys are a second factor, never a replacement
+### 通行密钥是第二因子，绝不是替代品
 
-A passkey is offered at `/login/verify`, after the password, exactly where the
-code field already is — never instead of it, and never in place of the
-password step. `POST /login/passkey/begin` and `/finish` both refuse without a
-`pendingLogin` behind them, the same guard `/login/verify` itself opens with:
-a stolen authenticator is not a login on its own. A challenge answers once:
-the server remembers the ones it has spent, so a captured assertion resent with
-its cookies is refused. Where an authenticator reports a signature counter that
-is checked too, and one that did not advance is refused as
-`passkey_clone_suspected`. Either is a failed attempt and never a lockout,
-since TOTP, a recovery code and another passkey are all still there. Most
-platform passkeys report no counter at all, so that second check is an extra
-rather than the guarantee.
+通行密钥在密码之后、于 `/login/verify` 提供，位置正是动态口令输入框所在之处——绝不是取代它，也绝不是取代密码这一步。`POST /login/passkey/begin` 与 `/finish` 在背后没有 `pendingLogin` 时都会拒绝，这与 `/login/verify` 自身开启时的守卫相同：一个被偷走的认证器本身并不构成登录。一个挑战只应答一次：服务器会记住已经用掉的挑战，因此截获的断言连同其 Cookie 一起重放会被拒绝。如果认证器上报签名计数器，也会一并校验；计数器没有前进的会被拒绝，并记为 `passkey_clone_suspected`。两种情形都是失败的尝试，而绝不是锁定，因为 TOTP、恢复码和另一枚通行密钥都还在。大多数平台通行密钥根本不上报计数器，因此第二项检查只是额外保障，而不是保证。
 
-Mandatory since 2.18 means an upgrade with only a password meets the same gate
-a fresh first run does. Every authenticated route redirects to `/password`
-until a factor — TOTP or a passkey — is enrolled. Nothing about a passkey
-being available changes that; TOTP alone still satisfies the gate.
+自 2.18 起强制启用，意味着仅设置密码的升级安装会遇到与全新首次运行相同的关卡。在注册任一因子——TOTP 或通行密钥——之前，所有已认证路由都会重定向到 `/password`。通行密钥是否可用并不改变这一点；仅 TOTP 也能满足该关卡。
 
-A passkey can be unavailable, and the interface says which of three reasons is
-in the way rather than showing a control that fails silently in the browser:
+通行密钥可能不可用，界面会说明三种原因中的哪一种在阻碍，而不是显示一个会在浏览器里静默失败的操作项：
 
-| Reason | Why |
+| 原因 | 说明 |
 |---|---|
-| The demo | Anyone can open it, and a passkey left there would stay |
-| No `tls.hostname` | WebAuthn's Relying Party ID must be a registrable domain; an installation reached by its bare IP address has none |
-| A self-signed certificate | No browser trusts the pair easywall generates itself by default, and a ceremony begun anyway fails in the browser with a `SecurityError` the operator cannot act on |
+| 演示模式 | 任何人都能打开它，留在那里的通行密钥会一直保留 |
+| 没有 `tls.hostname` | WebAuthn 的依赖方标识（Relying Party ID）必须是一个可注册域名；通过裸 IP 地址访问的安装没有这样的域名 |
+| 自签名证书 | 默认情况下没有浏览器信任 easywall 自行生成的那对证书，而强行开始认证仪式会在浏览器里以运维者无从处理的 `SecurityError` 失败 |
 
-The eight recovery codes are unaffected by all three, and are issued whichever
-factor came first. They are the way in when a passkey cannot be offered at all.
-TOTP is not: an account whose only factor is a passkey never had one.
+八个恢复码不受这三种情况影响，且无论先注册的是哪种因子都会签发。当完全无法提供通行密钥时，它们就是进入的方式。TOTP 则不然：只以通行密钥为唯一因子的账号，从来就没有 TOTP。
 
-### If the clock is wrong
+### 时钟不准时 {#if-the-clock-is-wrong}
 
-A code that will never verify does not have to end an enrolment attempt. The
-most common cause is a board with no real-time clock, still at whatever it
-booted to until NTP catches up. After one failed code, both the first-run
-wizard and `/password` offer a second way through. An explicit
-acknowledgement stores the secret already shown on screen and issues eight
-recovery codes, and the account is usable immediately. Until the clock is
-fixed, one of the eight codes is the way in; once it is, the authenticator
-already paired works and normal sign-in works again.
+一个永远无法通过校验的动态口令，不必让注册尝试就此终止。最常见的原因是没有实时时钟的主板，在 NTP 追上来之前一直停留在启动时的那个时间。在一次口令失败之后，首次运行向导和 `/password` 都会提供第二条通路。一次显式确认会保存屏幕上已经显示过的密钥，并签发八个恢复码，账号立即可用。在时钟修好之前，八个恢复码之一就是进入的方式；时钟修好之后，已经配对的认证器即可工作，正常登录也恢复。
 
-This is gated on being the first factor. An operator who already has one is
-not locked out by a failed code on `/password` and can simply leave the
-page. The escape exists only for the account that cannot otherwise be used
-at all.
+这条路径的前提是：当前注册的必须是首个因子。已经有一个因子的运维者不会因为 `/password` 上的一次口令失败而被锁住，直接离开页面即可。这条逃生路径只面向否则完全无法使用的账号。
 
-## Panic mode
+## 恐慌模式 {#panic-mode}
 
-Since 2.7, `easywall-core` puts the last confirmed rule set back into the kernel
-at startup. A reboot no longer empties the firewall the way it used to, and no
-longer works as an accidental way back in. `easywall-core panic` is the
-deliberate one that replaces it: a console command that takes the firewall down
-immediately, whether or not the web interface is reachable at all.
+自 2.7 起，`easywall-core` 在启动时会把最后一份已确认的规则集重新装入内核。重启不再像过去那样清空防火墙，也不再是意外恢复访问的途径。`easywall-core panic` 是刻意替代它的方式：一条控制台命令，无论 Web 界面是否可达，都会立即关掉防火墙。
 
-It is a new way to disable the firewall, in full, from the console — and that
-belongs on this page whether or not it feels like a feature. Two things about it
-matter for the rest of this model:
+这是一种从控制台彻底禁用防火墙的新方式——无论它看起来是否像一个功能，它都应该出现在这一页上。关于它，有两点对这套模型的其余部分很重要：
 
-- **It survives a restart on purpose.** Panic mode is recorded in a marker file
-  and the startup restore refuses to run while it exists. Otherwise the next
-  reboot would put the very rules back that panic mode exists to remove.
-- **While the marker exists, an apply is refused and the acceptance rollback
-  stops at the kernel.** The stored rules are still reverted: an apply nobody
-  confirmed never gets to keep `Current`, or the next restore would install it
-  with no window of its own. The same holds when the core dies inside the
-  window: the next start reverts first ([recovery]({{ '/docs/features/recovery/' | relative_url }})). But the previous rules are not written back into a
-  table the console has deliberately torn down. That kernel half is the one place
-  in easywall where the central promise — every apply reverts itself unless you
-  confirm it — is switched off outright. That is because there is nothing
-  running to roll back onto. Both take effect the instant the marker is written and end the
-  instant `easywall-core resume` clears it.
+- **它刻意在重启后继续生效。** 恐慌模式记录在一个标记文件中，只要该文件存在，启动时的恢复就会拒绝运行。否则下一次重启就会把恐慌模式本就要移除的那批规则又装回去。
+- **只要标记文件存在，应用就会被拒绝，确认回滚则止步于内核之前。** 存储的规则仍会被回退：一次没人确认的应用永远不能占据 `Current`，否则下一次恢复会把它装进去，而它自己没有确认窗口。core 在窗口内终止时同样如此：下一次启动会先回退（[恢复]({{ '/docs/features/recovery/' | relative_url }})）。但先前的规则不会被写回一个已被控制台刻意拆掉的表。内核这一半，是 easywall 中唯一一处把核心承诺——每次应用都会自行回滚，除非你确认——彻底关掉的地方。原因是那里已经没有任何东西可供回滚。两者都在标记文件写下的瞬间生效，并在 `easywall-core resume` 清除它的瞬间结束。
 
-Ending panic mode is console-only, without exception: the banner the interface
-shows carries no button. A control there would let the process reachable from
-the network re-arm a firewall a human just disarmed at the machine — on
-purpose, possibly using a stolen session. Full detail, real output, and the
-marker's path: [Recovery & Panic Mode]({{ '/docs/features/recovery/' | relative_url }}).
+结束恐慌模式只能通过控制台，没有例外：界面显示的横幅上不带任何按钮。若在那里放一个控件，就等于让从网络可达的那个进程，重新武装一台人刚刚在机器上解除的防火墙——而且是刻意为之，还可能借助一个被窃取的会话。完整细节、真实输出以及标记文件的路径：[恢复与恐慌模式]({{ '/docs/features/recovery/' | relative_url }})。
 
-## Behind a reverse proxy
+## 反向代理之后 {#behind-a-reverse-proxy}
 
-easywall terminates TLS itself and does **not** believe `X-Forwarded-For` —
-unless the peer sending the request is on `trusted_proxies`. `trusted_proxies` is
-a list configured explicitly, never a boolean. easywall never believes
-`X-Real-IP`, `True-Client-IP` or `Forwarded`. A client that can set its own
-source address and is not on that list walks straight past the login rate limiter.
+easywall 自己终结 TLS，并且**不**相信 `X-Forwarded-For`——除非发送请求的对端位于 `trusted_proxies` 之中。`trusted_proxies` 是一个显式配置的列表，绝不是布尔开关。easywall 从不相信 `X-Real-IP`、`True-Client-IP` 或 `Forwarded`。能够自行设置源地址、又不在该列表中的客户端，会径直绕过登录速率限制器。
 
 | | |
 |---|---|
-| What stays authoritative | `r.RemoteAddr` — the actual TCP peer, unless it is a listed proxy |
-| The cost of an untrusted proxy | every request looks like it comes from the proxy, so the limit of five attempts per ten minutes is shared by everyone. One person getting it wrong repeatedly locks the rest out until it refills |
-| What to do about it | list the proxy in `trusted_proxies` — [Behind a reverse proxy]({{ '/docs/installation/reverse-proxy/' | relative_url }}) is the whole task, with nginx and Docker |
+| 仍然以什么为准 | `r.RemoteAddr`——实际的 TCP 对端，除非它是列表中的代理 |
+| 不信任代理的代价 | 每个请求看起来都来自该代理，于是每十分钟五次的限制由所有人共享。一个人反复输错，就会把其他人锁在外面，直到额度回填 |
+| 该怎么办 | 把代理写进 `trusted_proxies`——[反向代理之后]({{ '/docs/installation/reverse-proxy/' | relative_url }})就是全部操作，含 nginx 与 Docker |
 
-This only affects the *login* limiter. The firewall's own protection modules count
-per source address in the kernel and are unaffected by any HTTP header.
+这只影响*登录*限制器。防火墙自身的防护模块在内核中按源地址计数，不受任何 HTTP 头影响。
 
-## Transport
+## 传输 {#transport}
 
-HTTPS only, TLS 1.2+. Without a configured certificate easywall generates a
-self-signed **ECDSA P-256** one into `ssl_dir`. It replaces that certificate
-once it comes within 30 days of expiry — checked at startup, and twice a day
-while the service is running. The certificate is read per handshake rather
-than once at startup, so a renewal takes effect without a restart. That
-matters for a service that may well outlive its own one-year certificate.
+仅 HTTPS，TLS 1.2 及以上。未配置证书时，easywall 会在 `ssl_dir` 里生成一张自签名的 **ECDSA P-256** 证书。当它进入到期前 30 天，就会被替换——启动时检查一次，服务运行期间每天检查两次。证书在每次握手时读取，而不是启动时只读一次，因此续期无需重启即可生效。对一个很可能比自己那张一年期证书活得更久的服务来说，这一点很重要。
 
-A certificate you configure yourself is never overwritten. It is re-read when the file
-changes, so an ACME client renewing it in place needs no restart either.
+你自己配置的证书绝不会被覆盖。文件变化时会重新读取，因此就地续期的 ACME 客户端同样无需重启。
 
 ```toml
 [tls]
@@ -200,146 +120,81 @@ cert = "/etc/letsencrypt/live/example.com/fullchain.pem"
 key  = "/etc/letsencrypt/live/example.com/privkey.pem"
 ```
 
-### The one exception: ACME's port 80
+### 唯一的例外：ACME 的 80 端口 {#the-one-exception-acmes-port-80}
 
-No other plaintext port is opened, but `tls.acme = true` opens one. A
-certificate authority proves you control `tls.hostname` by connecting to port
-80 over plain HTTP and reading back a token (HTTP-01). That is the inbound half.
-The outbound half — what easywall sends the authority, and when — is a row in
-[Every request that goes out](#every-request-that-goes-out) below.
+不会打开任何其他明文端口，但 `tls.acme = true` 会打开一个。证书颁发机构通过以明文 HTTP 连接 80 端口并读回一个令牌，来证明你控制着 `tls.hostname`（HTTP-01）。这是入站的一半。出站的一半——easywall 向该机构发送什么、何时发送——是下文[每一条对外请求](#every-request-that-goes-out)中的一行。
 
-easywall's listener answers that one path and nothing else — 404 for
-everything else. It is deliberately not a second web interface, and
-deliberately not autocert's own default, whose fallback redirects to
-`https://host/` where easywall is not listening.
+easywall 的监听器只应答那一条路径，别的一概不应答——其余一切都返回 404。它刻意不是一个第二 Web 界面，也刻意不采用 autocert 自己的默认行为：后者的兜底会重定向到 `https://host/`，而 easywall 并不在那里监听。
 
-It runs for as long as the service does, not only while a certificate is first
-being issued. Renewal happens on autocert's own schedule, and a listener that
-only exists for the first issuance has silently stopped working by the time a
-renewal needs it.
+它随着服务的整个生命周期运行，而不只在首次签发证书期间运行。续期按 autocert 自己的时间表进行，而一个只为首次签发而存在的监听器，等到续期需要它时早已悄悄失效。
 
-Three things have to be true before that listener can answer at all, and
-easywall does none of them for you:
+在那个监听器能够应答之前，必须满足三件事，而 easywall 一件都不会替你做：
 
-1. `tls.hostname` resolves to this host from the public internet.
-2. The service can bind port 80. The packaged systemd unit grants exactly
-   `AmbientCapabilities=CAP_NET_BIND_SERVICE` for this; a unit built by hand
-   needs the same line.
-3. **Port 80 is open in your own easywall rules.** easywall will not open a
-   port by itself — a firewall that opens ports on its own initiative is not
-   one you can reason about. So this is the one precondition on this list
-   that is actually your job.
+1. `tls.hostname` 能从公网解析到本主机。
+2. 服务能够绑定 80 端口。打包的 systemd 单元正是为此授予 `AmbientCapabilities=CAP_NET_BIND_SERVICE`；手工编写的单元需要同样的一行。
+3. **80 端口在你自己的 easywall 规则中是开放的。** easywall 不会自行打开端口——一个会自作主张打开端口的防火墙，不是你能推理清楚的防火墙。因此这是本清单中唯一真正属于你的工作。
 
-   The System page reports whether it is, in your *live* rules, restricted or
-   not. A rule for 80 whose `sources` excludes the public internet does not
-   let the certificate authority in, even though the port is technically "in
-   your rules".
+   系统页面会报告它在你*当前生效*的规则中是否开放、是否受限。一条针对 80 的规则若其 `sources` 排除了公网，仍然不会让证书颁发机构进来，即便该端口在技术上确实「在你的规则里」。
 
-   The report does not see everything that decides reachability, though. A
-   blocklist entry, a custom rule, or IPv6 mode = `block` can each keep a
-   certificate authority out even when the row says open. Let's Encrypt
-   prefers IPv6 when an AAAA record exists, and the report reads the ports
-   table only.
+   不过，这份报告看不到决定可达性的所有因素。拦截列表条目、自定义规则，或 IPv6 mode = `block`，都可能在那一行显示为开放时仍把证书颁发机构挡在外面。当存在 AAAA 记录时，Let's Encrypt 优先使用 IPv6，而这份报告只读端口表。
 
-A bind failure on port 80 is fatal to the whole interface, not only to ACME.
-`Start()` refuses rather than run with a configuration it cannot honor — the
-same choice this project already makes for a missing certificate file or
-missing templates. If something else already holds port 80 — nginx in front,
-another service — free it or turn `tls.acme` off. Nothing here retries in the
-background or falls back to serving without it.
+80 端口绑定失败会让整个界面无法启动，而不只是 ACME。`Start()` 会拒绝启动，而不是带着一份它无法兑现的配置继续运行——这与本项目在证书文件缺失或模板缺失时所做的选择相同。如果别的东西已经占着 80 端口——前置的 nginx、另一个服务——就释放它，或者关掉 `tls.acme`。这里不会在后台重试，也不会退化成不带它继续提供服务。
 
-### The one place a string reaches a command
+### 唯一一处字符串会到达命令的地方
 
-Every typed rule reaches the kernel as a Go struct over netlink. **Custom rules are
-the exception**: the netlink library takes typed expressions rather than text, so a
-statement you write by hand is applied by putting
-`add rule inet easywall input <your rule>` into `nft -f -`. Saying "no subprocess
-in the apply path", as this page once did, was not true.
+每条类型化规则都以 Go 结构体的形式经 netlink 到达内核。**自定义规则是例外**：netlink 库接收的是类型化表达式而非文本，因此你手写的语句是这样应用的——把 `add rule inet easywall input <your rule>` 交给 `nft -f -`。本页曾说过「应用路径中没有子进程」，那句话并不成立。
 
 | | |
 |---|---|
-| The risk | `nft` reads a newline and a semicolon as the end of one command and the start of the next, so a rule carrying either is a **second command run by the root daemon** |
-| Demonstrated | not theoretical — an imported rule containing a newline wrote into a neighbouring table on a real kernel |
-| The mitigation | both characters refused on save, on import, and again inside the core, by the same check |
-| Why on the *shape* | a check that parsed nftables would depend on nft's grammar, on a subprocess being available, and on the syntax-check wrapper happening to be balanced. This one depends on none of them |
-| Also bounded | 256 statements per check |
+| 风险 | `nft` 把换行符和分号读作一条命令的结束和下一条命令的开始，因此携带其中任一字符的规则，就是**由 root 守护进程执行的第二条命令** |
+| 已验证 | 并非理论——一条含换行符的导入规则曾在真实内核上写入相邻的表 |
+| 缓解措施 | 保存时、导入时，以及 core 内部再次，都由同一项检查拒绝这两个字符 |
+| 为什么按*形状*检查 | 一个解析 nftables 的检查会依赖 nft 的语法、依赖子进程可用，还依赖语法检查包装恰好平衡。这一项不依赖其中任何一个 |
+| 同时有上限 | 每次检查 256 条语句 |
 
-What remains is what the feature is for: an operator with an account can write
-firewall rules, which is also true of every other page.
+剩下的正是这个功能存在的意义：拥有账号的运维者可以编写防火墙规则，其他每一页也是如此。
 
-### Nothing is loaded from a third party
+### 不从任何第三方加载内容
 
-Fonts, stylesheet, icons and htmx are served by easywall itself, and the policy
-permits no external origin:
+字体、样式表、图标和 htmx 都由 easywall 自己提供，策略不允许任何外部来源：
 
 ```
 default-src 'self'; script-src 'self' 'nonce-<per-request>'; style-src 'self';
 font-src 'self'; img-src 'self' data:; connect-src 'self'
 ```
 
-Two reasons, both practical. An administrative interface should not report a visit
-to anyone — the earlier build loaded its typefaces from Google Fonts, which did
-exactly that. And easywall often runs on hosts with no outbound route, where that
-request simply failed and left the typography broken on the machines the tool is
-built for.
+两个原因，都很实际。管理界面不应该向任何人报告一次访问——更早的版本从 Google Fonts 加载字体，那正是在报告。而且 easywall 经常运行在没有出站路由的主机上，那些请求只会失败，让这台工具所面向的机器上排版崩坏。
 
-> **A constraint on contributions.** `style-src` has no `'unsafe-inline'`, so
-> assigning `element.style.*` from JavaScript, or letting a library inject a
-> `<style>` block, is blocked. Scripts toggle a class instead.
+> **对贡献的一条约束。** `style-src` 没有 `'unsafe-inline'`，因此从 JavaScript 给 `element.style.*` 赋值，或者让某个库注入 `<style>` 块，都会被阻止。脚本改用切换 class 的方式。
 
-### Every request that goes out
+### 每一条对外请求 {#every-request-that-goes-out}
 
-Six, and this is the whole list.
+共六条，这就是完整清单。
 
-| | Destination | When | Carries | Default |
+| | 目的地 | 何时 | 携带 | 默认 |
 |---|---|---|---|---|
-| Update check | `api.github.com` | once a day | nothing about you — a plain GET for the newest release | **on**, `update_check = false` removes it |
-| Installation count | `telemetry.wdkro.de` | once a day | a random identifier generated on your machine, and the version | **off** until you switch it on |
-| Notifications | **an address you choose** | when one of the four things you ticked happens, and whenever you press **Send a test** | the event, its detail, this host's name and the version | **off** until you set an address |
-| Feeds | each list you switch on, at the address the catalogue names, a country's on `raw.githubusercontent.com` — or **an address you choose** for an own feed | on the list's schedule, hourly to daily | nothing about you — a GET with the version in the User-Agent; to an own feed, the user and password you gave it | **off**, each one, until you switch it on |
-| Country lookup | `github.com`, which redirects to `release-assets.githubusercontent.com` — no other host, never over plain HTTP | once a day; after a failure, retried from an hour on | nothing about you — a GET with the version in the User-Agent | **on**, `country_lookup = false` removes it |
-| A certificate | the ACME directory, Let's Encrypt unless `acme_directory` names another | on first need, and again before expiry | the one name in `tls.hostname`, your agreement to the authority's subscriber terms, the public half of an account key made here, and `acme_email` if you set one | **off** until `acme = true` |
+| 更新检查 | `api.github.com` | 每天一次 | 与你无关的内容——一次为获取最新版本而发的普通 GET | **开启**，`update_check = false` 会移除它 |
+| 安装计数 | `telemetry.wdkro.de` | 每天一次 | 在你机器上生成的随机标识符，以及版本号 | **关闭**，直到你开启它 |
+| 通知 | **你选择的地址** | 当你勾选的四种事件之一发生，以及每次你按下 **发送测试** 时 | 事件、其详情、本主机名和版本号 | **关闭**，直到你设置地址 |
+| 列表源 | 你开启的每个列表，地址由目录指定；国家/地区列表在 `raw.githubusercontent.com` 上——自建列表源则为**你选择的地址** | 按列表自身的时间表，从每小时到每天 | 与你无关的内容——一次在 User-Agent 中带有版本号的 GET；发往自建列表源时，还包括你提供给它的用户名和密码 | **关闭**，每个都是，直到你开启它 |
+| 国家/地区查询 | `github.com`，它会重定向到 `release-assets.githubusercontent.com`——没有其他主机，绝不走明文 HTTP | 每天一次；失败后从一小时起重试 | 与你无关的内容——一次在 User-Agent 中带有版本号的 GET | **开启**，`country_lookup = false` 会移除它 |
+| 证书 | ACME 目录，除非 `acme_directory` 指明另一个，否则是 Let's Encrypt | 首次需要时，以及到期前再次 | `tls.hostname` 中的那一个名称、你对机构订阅者条款的同意、在此生成的账户密钥的公开部分，以及你设置的 `acme_email`（若已设置） | **关闭**，直到 `acme = true` |
 
-Two run by default. Once a day the update check asks `api.github.com`, and the
-country lookup downloads ipverse's country list from `github.com` and
-`release-assets.githubusercontent.com` — after a failure, retried from an hour on. `update_check = false` and
-`country_lookup = false` in `web.toml` switch them off.
+默认运行其中两条。每天一次，更新检查会询问 `api.github.com`，国家/地区查询则从 `github.com` 与 `release-assets.githubusercontent.com` 下载 ipverse 的国家/地区列表——失败后从一小时起重试。`web.toml` 中的 `update_check = false` 与 `country_lookup = false` 可关掉它们。
 
-The first five are not on the path of a page. On a host with no route out they
-simply fail, and nothing else changes. The exact request the count makes is printed
-verbatim under [Configuration]({{ '/docs/configuration/' | relative_url }}#counting-installations).
+前五条不在任何页面的请求路径上。在没有出站路由的主机上，它们只会失败，其他一切不变。安装计数所发的确切请求，原样印在[配置]({{ '/docs/configuration/' | relative_url }}#counting-installations)之下。
 
-**The certificate is not one of those.** It is on the path of every page, because
-it is what serves them. A host that cannot reach the authority goes on answering
-while the certificate cached in `<ssl_dir>/acme` is still valid — weeks, normally.
-It stops when there is nothing valid left to serve, and the first issuance is the
-unforgiving one: there is no cache yet. The inbound half of that exchange, and the port 80 bind that is
-fatal when it fails, are [above](#the-one-exception-acmes-port-80).
+**证书不属于那五条。** 它位于每一个页面的请求路径上，因为页面正是由它提供的。无法触达证书颁发机构的主机，只要 `<ssl_dir>/acme` 中缓存的证书仍然有效，就会继续应答——通常还能撑数周。等到没有有效证书可提供时，它就停止；而首次签发是最不宽容的一次：那时还没有任何缓存。那次交换的入站一半，以及失败即致命的 80 端口绑定，见[上文](#the-one-exception-acmes-port-80)。
 
-The private half of the account key never leaves the host. What goes out is its
-public half, signing each request.
+账户密钥的私有部分从不离开主机。出去的是它的公开部分，为每个请求签名。
 
-> **The notification and an own feed are the two easywall cannot name at all.**
-> `api.github.com`, `telemetry.wdkro.de` and the catalogue's lists are fixed, and
-> the certificate authority is a default you may replace. Where a notification
-> goes is yours from the start, so nothing here can promise where it lands. Only
-> that it goes nowhere until you set an address, that redirects are refused, and
-> that the address is a credential. See
-> [Notifications]({{ '/docs/features/notifications/' | relative_url }}). An own
-> feed is held to `https://`, or `http://` to this host only; redirects are
-> refused there too, and its password is never shown back or logged. It is kept
-> in plain text in `<data_dir>/web/feed_fetch.json`, readable by the web user
-> alone, because the web process has to send it.
+> **通知与自建列表源，是 easywall 完全无法指名的两处。** `api.github.com`、`telemetry.wdkro.de` 和目录中的列表都是固定的，证书颁发机构则是一个你可以替换的默认值。通知发往哪里，从一开始就由你决定，因此这里无法承诺它会落到何处；只能承诺：在你设置地址之前它哪儿也不去，重定向会被拒绝，而那个地址本身即是一项凭据。见[通知]({{ '/docs/features/notifications/' | relative_url }})。自建列表源只允许 `https://`，或仅指向本主机的 `http://`；那里同样拒绝重定向，其密码从不回显，也不写入日志。它以明文保存在 `<data_dir>/web/feed_fetch.json`，仅 Web 用户可读，因为 Web 进程必须发送它。
 
-> **Fixed in v2.4.0.** htmx was configured through a listener for an `htmx:config`
-> event, which htmx does not emit. So `allowEval` stayed at its default of `true`
-> and the script nonce was never applied. It goes through the
-> `meta[name=htmx-config]` tag now. Found by tightening `style-src`, which surfaced
-> an inline `<style>` block htmx had been injecting unnoticed.
+> **已在 v2.4.0 修复。** 此前 htmx 是通过监听一个 `htmx:config` 事件来配置的，而 htmx 并不发出该事件。于是 `allowEval` 一直停留在默认值 `true`，脚本 nonce 从未被应用。现在改为通过 `meta[name=htmx-config]` 标签完成。这个问题是在收紧 `style-src` 时发现的，收紧后暴露出 htmx 一直在悄悄注入的内联 `<style>` 块。
 
-## What the audit log actually records
+## 审计日志实际记录了什么
 
-One JSON object per line in `<log_dir>/audit.log`, rotated daily, 30 days kept:
+`<log_dir>/audit.log` 中每行一个 JSON 对象，每天轮转，保留 30 天：
 
 ```json
 {"time":"2026-08-04T14:25:13Z","action":"apply_started","rule_type":"all","detail":"","user":"web"}
@@ -347,70 +202,54 @@ One JSON object per line in `<log_dir>/audit.log`, rotated daily, 30 days kept:
 {"time":"2026-08-04T14:30:00Z","action":"apply_rolledback","rule_type":"all","detail":"timeout","user":"web"}
 ```
 
-`user` is always `web`, whichever account signed in: the socket protocol carries
-no identity yet. It names the process, not the person — see the
-[roadmap]({{ '/docs/roadmap/' | relative_url }}).
+无论登录的是哪个账号，`user` 始终是 `web`：socket 协议目前不携带身份信息。它记录的是进程，不是人——见[路线图]({{ '/docs/roadmap/' | relative_url }})。
 
-| Recorded | **Not** recorded |
+| 记录 | **不**记录 |
 |---|---|
-| `apply_started` · `apply_accepted` · `apply_rolledback` · `apply_failed` | the source address of a change |
-| `rollback_failed` — new rules did not take *and* the old ones did not return | which account made the change |
+| `apply_started` · `apply_accepted` · `apply_rolledback` · `apply_failed` | 更改的源地址 |
+| `rollback_failed`——新规则没有生效，*并且*旧规则没有恢复 | 是哪个账号做出的更改 |
 | `rules_saved` · `rules_imported` | |
 | `options_saved` · `settings_saved` · `system_saved` | |
 
-> **Since 2.8, logins are in the audit log.** Thirteen events: signed in,
-> sign-in failed, second factor failed, a recovery code used, sign-in attempts
-> blocked, and signed out. A factor switched on, off or regenerated, a passkey
-> used, enrolled or removed, and a passkey whose counter did not advance.
-> See [the thirteen login events]({{ '/docs/features/audit-log/' | relative_url }}#the-thirteen-login-events).
-> None of them carries colour: a sign-in does not move the firewall.
+> **自 2.8 起，登录事件进入审计日志。** 共十三种事件：登录成功、登录失败、第二因子失败、使用了一个恢复码、登录尝试被阻止、退出登录，以及因子被启用、禁用或重新生成，通行密钥被使用、注册或移除，还有签名计数器没有前进的通行密钥。见[十三种登录事件]({{ '/docs/features/audit-log/' | relative_url }}#the-thirteen-login-events)。这些事件都不着色：一次登录并不会改动防火墙。
 
-Reading it: [Audit log]({{ '/docs/features/audit-log/' | relative_url }}).
+阅读方法：[审计日志]({{ '/docs/features/audit-log/' | relative_url }})。
 
-### Refused packets
+### 被拒绝的数据包
 
-The Blocked page holds the source and destination address of every packet the
-enabled log switches refuse. That is personal data, so here is exactly where it
-lives:
+被拦截的流量页面保存着已启用的日志开关所拒绝的每一个数据包的源地址和目标地址。这属于个人数据，因此下面明确说明它究竟存放在哪里：
 
 | | |
 |---|---|
-| Memory | easywall-core only, the last `entries` packets (20 000 by default), lost on restart |
-| Disk | **nothing, by default.** With `persist = true`: `/var/log/easywall/packets.log`, `0600 root` — it rewrites itself to the ring, oldest first out, once it holds more than twice `entries` lines, and needs no logrotate |
-| Leaves the host | never. The web process asks the core over the socket; nothing is sent anywhere |
-| Erase it | `systemctl stop easywall-core && rm /var/log/easywall/packets.log` — also the repair for a corrupt file: a line over 64 KiB stops the replay and the log falls back to memory-only until the file is removed and the core restarts |
+| 内存 | 仅 easywall-core，最近 `entries` 个数据包（默认 20 000 个），重启即丢失 |
+| 磁盘 | **默认不写。** 使用 `persist = true` 时：`/var/log/easywall/packets.log`，权限 `0600 root`——一旦行数超过 `entries` 的两倍，它就按环形缓冲区重写自身，先出最旧的，且无需 logrotate |
+| 离开主机 | 从不。Web 进程经 socket 向 core 查询；不会向任何地方发送内容 |
+| 删除它 | `systemctl stop easywall-core && rm /var/log/easywall/packets.log`——这也是损坏文件的修复方式：超过 64 KiB 的一行会中断重放，日志退回到仅内存模式，直到文件被删除且 core 重启 |
 
-The country column is looked up in the copy of ipverse's list kept on this
-host; no address leaves it for that.
+国家/地区列查询的是保存在本主机上的 ipverse 列表副本；为此没有任何地址离开本机。
 
-Retention is bounded by count, not time: at the default sixty lines a minute,
-20 000 entries is about five and a half hours, and a flood shortens it.
+保留量按条数而非时间限定：按默认每分钟六十行计算，20 000 条约为五个半小时，而一次洪泛会缩短这个时间。
 
-## The CVE that shaped this
+## 塑造了这一设计的那个 CVE
 
-easywall v0.3.1 — Python, Flask, `iptables` — was archived in 2022 after a
-disclosure. Four root causes, and what replaced each:
+easywall v0.3.1——Python、Flask、`iptables`——在一次漏洞披露后于 2022 年归档。四个根因，以及各自被什么取代：
 
 | v1 | v2 |
 |---|---|
-| Web process ran as root — one injection was full compromise | Web runs unprivileged; there is no kernel access to misuse |
-| `iptables` through `subprocess` with user-controlled strings | `google/nftables` over netlink — no shell, no argv |
-| File-based IPC with sentinel files — racy | A typed protocol over a Unix socket |
-| SHA-512 salted with the hostname — trivially reversed | Argon2id with a random 16-byte salt per password |
+| Web 进程以 root 运行——一次注入即为完全失陷 | Web 以无权限方式运行；没有可滥用的内核访问权限 |
+| 经 `subprocess` 调用 `iptables`，字符串由用户控制 | 经 netlink 使用 `google/nftables`——没有 shell，没有 argv |
+| 基于文件的 IPC 与哨兵文件——存在竞态 | Unix socket 上的类型化协议 |
+| 以主机名加盐的 SHA-512——可轻易逆向 | Argon2id，每个密码使用随机的 16 字节盐 |
 
-## What this does not protect you from
+## 本设计不能防护什么
 
 | | |
 |---|---|
-| A compromised root account | root owns the core |
-| A kernel nftables vulnerability | that is below easywall entirely |
-| An administrator writing a bad rule | the [audit log]({{ '/docs/features/audit-log/' | relative_url }}) records it; nothing prevents it |
-| Anyone holding `session_key` | it signs the cookies, so it *is* a login. Keep it out of backups you share |
+| 已被攻陷的 root 账号 | root 掌握着 core |
+| 内核 nftables 漏洞 | 它完全位于 easywall 之下 |
+| 管理员写出糟糕的规则 | [审计日志]({{ '/docs/features/audit-log/' | relative_url }})会记录它；但没有任何机制阻止它 |
+| 任何持有 `session_key` 的人 | 它签署 Cookie，所以它*就是*一次登录。不要让它进入你分享的备份 |
 
-## Reporting a vulnerability
+## 报告漏洞
 
-**Not as a public issue.** Use
-[GitHub Security Advisories](https://github.com/jp1337/easywall/security/advisories/new)
-for private disclosure — see [SECURITY.md](https://github.com/jp1337/easywall/blob/main/SECURITY.md).
-Research is welcome and unpaid; with your consent, a responsible report is credited in
-the advisory and the release notes. Test on your own installation, never on someone else's.
+**不要作为公开 issue。** 私下披露请使用 [GitHub Security Advisories](https://github.com/jp1337/easywall/security/advisories/new)——见 [SECURITY.md](https://github.com/jp1337/easywall/blob/main/SECURITY.md)。欢迎研究，没有报酬；经你同意，负责任的报告会在安全公告与发布说明中致谢。在你自己的安装上测试，绝不要在别人的安装上测试。
