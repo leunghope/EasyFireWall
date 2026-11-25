@@ -1,3 +1,15 @@
+easywall (2.29.2-zh.1) unstable; urgency=medium
+
+  * Simplified Chinese localisation: locales/zh.json carries all 934 keys at
+    parity with en, and the interface, the first-run wizard and every settings
+    page render from it.
+  * The published documentation under docs/ is translated in the same release,
+    and the Pagefind index is built for Chinese segmentation.
+  * No change to the firewall, the socket protocol, the rule builder or the
+    packaging: this release is the 2.29.2 tree with translations on top.
+
+ -- Leung Hope <leunghope@users.noreply.github.com>  Tue, 25 Nov 2026 17:45:00 +0800
+
 easywall (2.29.2) unstable; urgency=medium
 
   * What an audit turned up: a rollback undoes option and network changes,

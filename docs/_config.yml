@@ -16,7 +16,7 @@ timezone: Europe/Berlin
 # Shown as the badge in the sidebar. Must match shared.CurrentVersion in
 # internal/shared/version.go — TestDocsVersionMatchesRelease enforces that.
 # It was hardcoded in the layout as "v2.4" and drifted a patch release behind.
-version: "2.29.2"
+version: "2.29.2-zh.1"
 
 tagline: "你的防火墙。你的规则。没有意外。"
 logo: /assets/img/icon.svg

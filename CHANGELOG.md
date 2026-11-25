@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.29.2-zh.1] — 2026-11-25
+
+**简体中文本地化版本。**
+
+### 新增
+
+- **中文界面**：`locales/zh.json` 收录全部 934 个字符串，与 `en` 完全对齐；语言选择器、
+  首启向导和每一个设置页都能显示简体中文。
+- **中文文档**：`docs/` 全站中文——首页、安装、功能说明、参考页——搜索索引改为
+  强制中文分词构建；`README.md` 同步翻译。
+- **语言接入**：`docs/schemas/web.schema.json` 的 `language` 枚举加入 `zh`，
+  `locales/status.json` 按 CONTRIBUTING 的流程把它标记为未评审。
+
+### 变更
+
+- 六个 guard test 适配中文：非 ASCII 路径、中文句号分句、中文空结果文案。
+- `scripts/ui-check.mjs` 增加 `--accept-lang=en-US`，浏览器语言不再影响断言。
+- `docs/assets/css/style.css` 用 `npm run build:docs-css` 重建。
+
+### 说明
+
+- 防火墙行为、socket 协议、规则构建与打包与 2.29.2 完全一致，本版本只在上面
+  叠加了翻译。
+
 ## [2.29.2] — 2026-10-30
 
 **What an audit turned up.**
@@ -3159,7 +3183,8 @@ After explicit configuration the following ICMPv6 types are allowed additionally
 - easywall Firewall Core Part running as root user finished
 - The New easywall will be one part running as root and one part running as easywall user which has access to config files.
 
-[Unreleased]: https://github.com/jp1337/easywall/compare/v2.29.2...HEAD
+[Unreleased]: https://github.com/jp1337/easywall/compare/v2.29.2-zh.1...HEAD
+[2.29.2-zh.1]: https://git.f-tuan.com/leunghope/easywall/releases/tag/v2.29.2-zh.1
 [2.29.2]: https://github.com/jp1337/easywall/compare/v2.29.1...v2.29.2
 [2.29.1]: https://github.com/jp1337/easywall/compare/v2.29.0...v2.29.1
 [2.29.0]: https://github.com/jp1337/easywall/compare/v2.28.0...v2.29.0

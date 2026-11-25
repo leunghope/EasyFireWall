@@ -1,0 +1,304 @@
+name: release
+
+# Where this lives, and why it is not .github/workflows/release.yml
+#
+# The upstream pipeline in .github/workflows/ is written for GitHub: `gh api`,
+# GHCR, Docker Hub, Quay, Discord, ubuntu-26.04 runners, and a main-is-green
+# gate that requires the tagged commit to be on main. This branch is not on
+# main and this instance is Gitea, so every one of those steps fails here. This
+# file is the same release cut with what this host actually has.
+#
+# Measured, not assumed (probe-2901, see docs-tech/gitea-release.md):
+#   - the runner executes jobs on the host, as root, with bash. There is no
+#     node in PATH, so every JavaScript action — actions/checkout@v4 included —
+#     fails with "Cannot find: node in PATH". The checkout below is three git
+#     commands for that reason.
+#   - `container:` works: the image is pulled and the workspace and the docker
+#     socket are mounted into it. But act's default shell inside a Debian image
+#     is `sh`, which is dash, which rejects `set -o pipefail`. Hence the job
+#     defaults below.
+#   - the host has /var/run/docker.sock and no `docker` CLI, and no
+#     qemu-aarch64 binfmt. The image step installs the CLI and builds amd64.
+#
+# What it produces, in one job, in this order:
+#   1. asserts the tag is the version the tree declares (debian/changelog,
+#      internal/shared/version.go, the newest CHANGELOG.md heading)
+#   2. runs the unit tests on Linux — the platform every artefact targets
+#   3. two tarballs, amd64 and arm64, laid out as .goreleaser.yaml's archives
+#   4. a .deb built by dpkg-buildpackage, asserted for version, architecture,
+#      both binaries and locales/zh.json before it is allowed onto the release
+#   5. checksums.txt over every asset
+#   6. a container image pushed to this instance's registry (best effort)
+#   7. the Gitea release, created or updated, with every asset attached
+#
+# Publishing is last on purpose: a defect stops the run before a release exists,
+# rather than after one has been announced with a broken asset. The release is
+# idempotent — deleting the tag and pushing it again updates the same release
+# instead of failing on a 409.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: build and publish
+    runs-on: hk_runner
+    # Debian tools and a Go 1.27 toolchain in one image. debian/control asks for
+    # golang-go >= 2:1.27, which trixie does not ship, so the toolchain comes
+    # from this image and dpkg-buildpackage is run with -d (build-deps skipped).
+    # That is what upstream does on ubuntu-24.04 with actions/setup-go.
+    container: golang:1.27.3-bookworm
+    # The only thing the container needs from outside itself: the host's daemon,
+    # for the image step. Verified mounted by the probe.
+    container.options: --volume /var/run/docker.sock:/var/run/docker.sock
+    defaults:
+      run:
+        # act runs Debian images with `sh -e {0}`, which is dash and has no
+        # pipefail. The probe failed its first step on exactly this line.
+        shell: bash
+    env:
+      API: ${{ github.server_url }}/api/v1
+      REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+      REGISTRY: ${{ github.server_url }}
+      # Nothing below should ever sit waiting for a password prompt.
+      GIT_TERMINAL_PROMPT: "0"
+    steps:
+      - name: checkout
+        run: |
+          set -euo pipefail
+          # actions/checkout@v4 cannot run here (no node on the runner), and the
+          # job does not need it: the token in this step is the same one the
+          # publish step uses, and the tag is one shallow fetch.
+          host="${GITHUB_SERVER_URL#https://}"
+          host="${host#http://}"
+          git config --global credential.helper store
+          printf 'https://x-access-token:%s@%s\n' "$RELEASE_TOKEN" "$host" > "$HOME/.git-credentials"
+          chmod 600 "$HOME/.git-credentials"
+
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$REPO.git"
+          git fetch -q --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG"
+          git checkout -q "refs/tags/$TAG"
+          git log -1 --format='%H %s'
+
+      - name: install build tools
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            devscripts debhelper dpkg-dev file jq curl ca-certificates git
+          # Only the CLI is wanted — builds talk to the host's daemon through
+          # the mounted socket, so no daemon is started in here. Its absence is
+          # not fatal: the image step reports it and the release still ships.
+          apt-get install -y --no-install-recommends docker.io \
+            || echo "no docker CLI — the image step will be skipped"
+          go version
+          dpkg-buildpackage --version | head -1
+
+      - name: the tag is the version the tree declares
+        id: version
+        run: |
+          set -euo pipefail
+          want="${TAG#v}"
+          echo "VERSION=$want" >> "$GITHUB_ENV"
+
+          deb=$(sed -n '1s/^easywall (\([^)]*\)).*/\1/p' debian/changelog)
+          go=$(sed -n 's/^var CurrentVersion = "\(.*\)"$/\1/p' internal/shared/version.go)
+          log=$(sed -n '/^## \[[0-9]/{s/^## \[\([^]]*\)\].*/\1/p;q}' CHANGELOG.md)
+
+          fail=0
+          for pair in "debian/changelog=$deb" "internal/shared/version.go=$go" "CHANGELOG.md=$log"; do
+            if [ "${pair#*=}" = "$want" ]; then
+              echo "ok  ${pair%%=*} says $want"
+            else
+              echo "::error::${pair%%=*} says '${pair#*=}', the tag is $want"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: unit tests on Linux
+        env:
+          GOCACHE: /tmp/gocache
+          GOMODCACHE: /tmp/gomodcache
+        run: |
+          set -euo pipefail
+          go test ./cmd/... ./internal/...
+          echo "ok  tests passed against $(go version)"
+
+      - name: tarballs
+        env:
+          GOCACHE: /tmp/gocache
+          GOMODCACHE: /tmp/gomodcache
+        run: |
+          set -euo pipefail
+          version="$VERSION"
+          mkdir -p out
+          for arch in amd64 arm64; do
+            dir="out/easywall_${version}_linux_${arch}"
+            mkdir -p "$dir"
+            for bin in core web; do
+              GOOS=linux GOARCH="$arch" CGO_ENABLED=0 go build \
+                -trimpath \
+                -ldflags "-s -w -X github.com/jp1337/easywall/internal/shared.CurrentVersion=${version}" \
+                -o "$dir/easywall-${bin}" "./cmd/easywall-${bin}"
+            done
+            # The archive layout .goreleaser.yaml publishes: the binaries, the
+            # assets they read at runtime, the units, and the texts.
+            cp -a web locales config systemd README.md LICENSE CHANGELOG.md "$dir/"
+            tar -C out -czf "out/easywall_${version}_linux_${arch}.tar.gz" "easywall_${version}_linux_${arch}"
+            # Ask the artefact, not the build: a tar that silently lost a
+            # directory is exactly the failure a green build hides.
+            for f in easywall-core easywall-web web locales config systemd \
+                     README.md LICENSE CHANGELOG.md; do
+              tar -tzf "out/easywall_${version}_linux_${arch}.tar.gz" \
+                | grep -qx "easywall_${version}_linux_${arch}/$f" \
+                || { echo "::error::$arch tarball has no $f"; exit 1; }
+            done
+            case "$arch" in
+              amd64) file "$dir/easywall-core" | grep -q "x86-64" ;;
+              arm64) file "$dir/easywall-core" | grep -q "aarch64" ;;
+            esac || { echo "::error::$arch binary is not $arch"; exit 1; }
+            echo "ok  easywall_${version}_linux_${arch}.tar.gz"
+          done
+
+      - name: Debian package
+        env:
+          # The unit tests ran above against the same tree; dh_auto_test would
+          # run them a second time inside the build.
+          DEB_BUILD_OPTIONS: nocheck
+        run: |
+          set -euo pipefail
+          version="$VERSION"
+          # -d: debian/control wants golang-go >= 2:1.27, which no Debian suite
+          # ships yet; the toolchain in this image is the one that builds it.
+          dpkg-buildpackage -us -uc -b -d
+
+          deb=$(ls ../easywall_*.deb)
+          echo "built $deb"
+          dpkg-deb --contents "$deb" | grep -E ' \./usr/sbin/easywall-(core|web)$' \
+            || { echo "::error::$deb contains no binaries — refusing to publish it"; exit 1; }
+          got=$(dpkg-deb --field "$deb" Version)
+          [ "$got" = "$version" ] || { echo "::error::$deb says $got, the tag is $version"; exit 1; }
+          arch=$(dpkg-deb --field "$deb" Architecture)
+          [ "$arch" = "amd64" ] || { echo "::error::$deb is $arch, this runner builds amd64"; exit 1; }
+          dpkg-deb --contents "$deb" | grep -q 'usr/share/easywall/locales/zh.json' \
+            || { echo "::error::$deb does not carry the Chinese locale"; exit 1; }
+
+          dpkg-deb --fsys-tarfile "$deb" | tar -xO ./usr/sbin/easywall-core > /tmp/core
+          file /tmp/core | grep -q "x86-64" || { echo "::error::binary in the package is not amd64"; exit 1; }
+
+          cp "$deb" "out/easywall_${version}_amd64.deb"
+          echo "ok  $deb — $got, $arch"
+
+      - name: checksums
+        run: |
+          set -euo pipefail
+          # Last, so the manifest covers every asset the release carries — a
+          # checksum file that omits the .deb is worse than none, because it
+          # looks complete.
+          ( cd out && sha256sum $(ls -1 easywall_*) > checksums.txt )
+          cat out/checksums.txt
+
+      # A daemon is not a given on a self-hosted runner; when it is missing the
+      # release still ships, with a note in its body, rather than losing the
+      # tarballs and the package to a registry problem.
+      - name: can we build the image
+        id: docker
+        run: |
+          set -euo pipefail
+          if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+            docker --version
+          else
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+            echo "no docker daemon — the image will be skipped"
+          fi
+
+      - name: container image
+        id: image
+        if: steps.docker.outputs.ok == '1'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          version="$VERSION"
+          image="${REGISTRY#https://}"
+          image="${image#http://}/$REPO"
+          echo "$RELEASE_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+
+          # The probe found no qemu-aarch64 binfmt on this host, so an arm64
+          # image cannot be built here without emulation that is not installed.
+          # The tarballs and the .deb still cover both architectures.
+          docker build --build-arg VERSION="$version" \
+            --build-arg REVISION="$GITHUB_SHA" \
+            -t "$image:$version" -t "$image:zh" .
+          docker push "$image:$version"
+          docker push "$image:zh"
+          echo "IMAGE_PUSHED=$image:$version" >> "$GITHUB_ENV"
+          echo "ok  pushed $image:$version and $image:zh"
+
+      - name: publish the release
+        run: |
+          set -euo pipefail
+          version="$VERSION"
+
+          # The release body is the CHANGELOG section for this version, so the
+          # notes on the release page and the notes in the repository cannot
+          # disagree. Nothing is written by hand in the workflow.
+          body=$(awk -v ver="$version" '
+            index($0, "## [" ver "]") == 1 { on=1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md)
+          [ -n "$body" ] || { echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
+
+          assets=$(cd out && ls -1 easywall_* checksums.txt | sort)
+          table=$(printf '%s\n' "$assets" | sed 's/^/- `&`/')
+          if [ -n "${IMAGE_PUSHED:-}" ]; then
+            note="_容器镜像：\`${IMAGE_PUSHED}\` 与 \`:zh\`_"
+          else
+            note="_本次未构建容器镜像（runner 上没有可用的 docker 守护进程）。_"
+          fi
+          full=$(printf '%s\n\n**下载**\n\n%s\n\n%s\n' "$body" "$table" "$note")
+
+          payload=$(jq -n --arg tag "$TAG" --arg body "$full" \
+            '{tag_name:$tag, name:$tag, body:$body, draft:false, prerelease:false}')
+
+          id=$(curl -fsS -H "Authorization: token $RELEASE_TOKEN" \
+                 "$API/repos/$REPO/releases/tags/$TAG" 2>/dev/null | jq -r '.id' || true)
+          if [ -n "${id:-}" ] && [ "$id" != "null" ]; then
+            echo "release exists (id $id), updating it"
+            curl -fsS -X PATCH -H "Authorization: token $RELEASE_TOKEN" \
+              -H 'Content-Type: application/json' -d "$payload" \
+              "$API/repos/$REPO/releases/$id" > /dev/null
+          else
+            echo "creating the release"
+            id=$(curl -fsS -X POST -H "Authorization: token $RELEASE_TOKEN" \
+                   -H 'Content-Type: application/json' -d "$payload" \
+                   "$API/repos/$REPO/releases" | jq -r '.id')
+          fi
+          [ -n "${id:-}" ] && [ "$id" != "null" ] || { echo "::error::no release id came back"; exit 1; }
+
+          for f in $(cd out && ls -1 easywall_* checksums.txt); do
+            name=$(basename "$f")
+            # Re-running a release must replace an asset, not 409 on one already
+            # there. Gitea has no clobber flag, so the old one goes first.
+            old=$(curl -fsS -H "Authorization: token $RELEASE_TOKEN" \
+                    "$API/repos/$REPO/releases/$id/assets" 2>/dev/null \
+                    | jq -r --arg n "$name" '.[] | select(.name==$n) | .id' | head -1 || true)
+            if [ -n "${old:-}" ] && [ "$old" != "null" ]; then
+              curl -fsS -X DELETE -H "Authorization: token $RELEASE_TOKEN" \
+                "$API/repos/$REPO/releases/$id/assets/$old" > /dev/null
+            fi
+            curl -fsS -X POST -H "Authorization: token $RELEASE_TOKEN" \
+              -F "attachment=@out/$f" \
+              "$API/repos/$REPO/releases/$id/assets?name=$name" > /dev/null
+            echo "uploaded $name"
+          done
+
+          echo "::notice::release $TAG published at $GITHUB_SERVER_URL/$REPO/releases/tag/$TAG"
