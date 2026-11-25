@@ -1,3 +1,26 @@
+easywall (2.29.2-zh.3) unstable; urgency=medium
+
+  * The update check asks this repository's releases instead of upstream's.
+    The dashboard compared the installed version with
+    github.com/jp1337/easywall/releases/latest, so every 2.29.2-zh.N install
+    was offered 2.29.2 as an update, and the banner linked at a release that
+    carries no Chinese localisation. It now reads
+    github.com/leunghope/EasyFireWall/releases/latest, the same tree
+    .goreleaser.yaml publishes from.
+  * A guard test holds the update-check URL to debian/control's Vcs-Browser,
+    so moving the repository again cannot leave the two disagreeing.
+  * locales/status.json marks zh as reviewed: the language switcher no longer
+    appends the "unreviewed" suffix, and the copied-English check now covers
+    locales/zh.json. The nine ids that legitimately use the same word in both
+    languages stay whitelisted.
+  * The CHANGELOG.md link at the top of the documentation site's changelog
+    page pointed at the pre-migration repository; it names this one now, and
+    the page was regenerated.
+  * No change to the firewall, the socket protocol, the rule builder or what
+    the package installs.
+
+ -- Leung Hope <leunghope@users.noreply.github.com>  Wed, 25 Nov 2026 23:05:00 +0800
+
 easywall (2.29.2-zh.2) unstable; urgency=medium
 
   * The repository moved to github.com/leunghope/EasyFireWall: the README

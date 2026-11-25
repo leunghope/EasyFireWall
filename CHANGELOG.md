@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.29.2-zh.3] — 2026-11-25
 
 **更新检查改问本仓库，简体中文标为已审校。**
 
@@ -3240,7 +3240,8 @@ After explicit configuration the following ICMPv6 types are allowed additionally
 - easywall Firewall Core Part running as root user finished
 - The New easywall will be one part running as root and one part running as easywall user which has access to config files.
 
-[Unreleased]: https://github.com/leunghope/EasyFireWall/compare/v2.29.2-zh.2...HEAD
+[Unreleased]: https://github.com/leunghope/EasyFireWall/compare/v2.29.2-zh.3...HEAD
+[2.29.2-zh.3]: https://github.com/leunghope/EasyFireWall/releases/tag/v2.29.2-zh.3
 [2.29.2-zh.2]: https://github.com/leunghope/EasyFireWall/releases/tag/v2.29.2-zh.2
 [2.29.2-zh.1]: https://git.f-tuan.com/leunghope/easywall/releases/tag/v2.29.2-zh.1
 [2.29.2]: https://github.com/jp1337/easywall/compare/v2.29.1...v2.29.2

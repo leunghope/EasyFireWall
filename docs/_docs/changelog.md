@@ -16,7 +16,7 @@ until you open them. This page is generated from
 which is the file GitHub and the release tooling read.
 
 <nav class="changelog-versions" aria-label="Versions">
-  <a href="#Unreleased">Unreleased</a>
+  <a href="#2.29.2-zh.3">2.29.2-zh.3</a>
   <a href="#2.29.2-zh.2">2.29.2-zh.2</a>
   <a href="#2.29.2-zh.1">2.29.2-zh.1</a>
   <a href="#2.29.2">2.29.2</a>
@@ -90,8 +90,8 @@ which is the file GitHub and the release tooling read.
   addEventListener('hashchange', openTarget);
 </script>
 
-<details open id="Unreleased" markdown="1">
-<summary><strong>Unreleased</strong> — 更新检查改问本仓库，简体中文标为已审校。</summary>
+<details open id="2.29.2-zh.3" markdown="1">
+<summary><strong>2.29.2-zh.3</strong> · 2026-11-25 — 更新检查改问本仓库，简体中文标为已审校。</summary>
 
 ### 修复
 
@@ -118,7 +118,7 @@ which is the file GitHub and the release tooling read.
 - 文档站 changelog 页头部的 `CHANGELOG.md` 链接还指着迁移前的
   `jp1337/easywall`，改到本仓库并重新生成该页。
 
-[See everything changed since the last release](https://github.com/leunghope/EasyFireWall/compare/v2.29.2-zh.2...HEAD)
+[See the code as first released](https://github.com/leunghope/EasyFireWall/releases/tag/v2.29.2-zh.3)
 
 </details>
 
