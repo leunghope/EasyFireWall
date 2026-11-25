@@ -64,7 +64,14 @@ func ReleaseVersion(describe string) string {
 }
 
 // githubReleasesURL is a var so tests can override it with an httptest server URL.
-var githubReleasesURL = "https://api.github.com/repos/jp1337/easywall/releases/latest"
+//
+// The repository is the one that publishes this fork's releases, not the
+// upstream it was forked from. Pointed at jp1337/easywall, every 2.29.2-zh.N
+// build reported upstream's 2.29.2 as a newer version — semver orders a bare
+// version above its prereleases — and the banner offered a release with no
+// Chinese in it. debian/control names the same repository, and
+// TestTheUpdateCheckNamesTheRepositoryThePackagePointsAt compares the two.
+var githubReleasesURL = "https://api.github.com/repos/leunghope/EasyFireWall/releases/latest"
 
 // VersionInfo holds the result of a version check.
 type VersionInfo struct {

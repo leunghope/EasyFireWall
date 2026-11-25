@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**更新检查改问本仓库，简体中文标为已审校。**
+
+### 修复
+
+- **「有可用更新」改问本仓库**：检查请求的是上游 `jp1337/easywall` 的
+  `releases/latest`，于是本仓库的 `2.29.2-zh.2` 把上游 `2.29.2` 当成新版本——
+  semver 里 `2.29.2` 高于 `2.29.2-zh.2`——横幅点进去还是不含中文的上游 release。
+  现在指向 `leunghope/EasyFireWall` 的 `releases/latest`，与 `.goreleaser.yaml`
+  和发布页一致。
+- **仓库地址漂移加了守卫**：新测试解析 `githubReleasesURL` 的 owner 与 repo，
+  与 `debian/control` 的 `Vcs-Browser:` 比对，两处不一致就失败——上次迁移
+  漏掉的就是这一行。
+
+### 变更
+
+- **简体中文不再标注「未审校」**：`locales/status.json` 的 `zh` 改为
+  `reviewed: true`，语言切换器只剩「简体中文」。从此刻起
+  `TestTranslationsAreNotCopiedEnglish` 对 `zh` 生效：新增字符串不能直接粘贴
+  英文，少数本来就用同一个词的条目除外。
+
+### 文档
+
+- `docs-tech/translation-guidelines.md` 的审校状态一节，改成简体中文已审校后的
+  实际规则：哪些检查开始生效、白名单包含哪些 id、什么情况下可以回退。
+- 文档站 changelog 页头部的 `CHANGELOG.md` 链接还指着迁移前的
+  `jp1337/easywall`，改到本仓库并重新生成该页。
+
 ## [2.29.2-zh.2] — 2026-11-25
 
 **第一个由 GitHub Actions 构建并发布的版本。**

@@ -124,7 +124,7 @@ function render(versions, compareLinks) {
     '',
     'Every release, newest first. The newest is open; the rest are one line each',
     'until you open them. This page is generated from',
-    '[CHANGELOG.md](https://github.com/jp1337/easywall/blob/main/CHANGELOG.md),',
+    '[CHANGELOG.md](https://github.com/leunghope/EasyFireWall/blob/main/CHANGELOG.md),',
     'which is the file GitHub and the release tooling read.',
     ''
   ];

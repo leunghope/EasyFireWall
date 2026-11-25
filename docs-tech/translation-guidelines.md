@@ -153,7 +153,16 @@ Deutsch、Français、简体中文。文档中列举支持语言时，保留这�
 
 ## 八、审校状态
 
-`locales/status.json` 中 `zh` 标记为 `reviewed: false`：当前译文由 AI 起草，
-尚无母语者逐句审校。界面语言切换器会据此标注「未审校」。人工通读并修正后
-再改为 `true`，届时 `TestTranslationsAreNotCopiedEnglish` 才会开始校验
-「与英文逐字节相同」的条目。
+`locales/status.json` 里 `zh` 是 `reviewed: true`：简体中文已由母语者逐句通读并
+修正，界面语言切换器只显示「简体中文」，不再带「未审校」。
+
+标成 `true` 不是一枚奖章，而是一条持续生效的守卫：`TestTranslationsAreNotCopiedEnglish`
+从此把 `zh.json` 纳入检查，任何与 `en.json` 逐字节相同、且英文原文不短于 12 个
+字符的条目都会让它失败——新增字符串必须真的翻译，不能先粘贴英文占位。九个 id
+在允许列表里（`demo_label`、`nav_group_system`、`nav_system`、`ports_tcp`、
+`ports_udp`、`log_col_user`、`forwarding_protocol`、`system_title`、
+`audit_title`），它们的「译文」本来就该是同一个词。
+
+译文大改、或一次改动之后来不及通读，可以把 `zh` 回退成 `false`，但要在 PR 里
+说明为什么。`en`、`de` 由 `internal/web/locales.go` 的 `StrictLangs` 强制为
+`true`，不在可以回退的范围里；`fr` 的状态与简体中文无关，各语言各自记录。

@@ -65,10 +65,9 @@ const linked = new Set(
 // hand-written <details> in CHANGELOG.md's prose.
 const sections = (page.match(/<summary><strong>/g) || []).length;
 
-// CHANGELOG.md has no `## [Unreleased]` section on this tree (confirmed by
-// grep before writing this), so the special case that would exempt it from
-// needing a link definition is dropped rather than kept as a branch nothing
-// reaches.
+// Every heading needs a link definition, `[Unreleased]` included: it has one on
+// this tree, comparing the newest release against HEAD, so nothing here exempts
+// it from the check.
 const seen = new Set();
 for (const v of headingVersions) {
   if (seen.has(v)) fail.push(`version ${v} appears in two headings`);
